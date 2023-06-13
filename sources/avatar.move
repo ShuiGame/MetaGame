@@ -1,0 +1,20 @@
+module hello_world::avatar {
+    use std::string;
+    struct Avatar has store, copy, drop {
+        url:string::String,
+    }
+
+    public fun get_icon(data: &Avatar): string::String {
+        return data.url
+    }
+
+    public fun new_icon(url:string::String): Avatar{
+        Avatar {
+            url:url
+        }
+    }
+
+    public fun set_icon(avatar:&mut Avatar, url:string::String) {
+        avatar.url = url;
+    }
+}
