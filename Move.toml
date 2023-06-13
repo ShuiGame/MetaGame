@@ -1,0 +1,12 @@
+[package]
+name = 'SuiFrameTest'
+version = '1.0.0'
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git",  rev = "framework/testnet", subdir = "crates/sui-framework/packages/sui-framework"}
+
+[addresses]
+hello_world =  "0x0"
+shui_module = "0x0"
+account = "0xd0188dfed17c51eb50d233f0bee90be65b11bcfd72c54733464e3a6cc69f20ab"
+std= "0x1"
+sui = "0x2"
