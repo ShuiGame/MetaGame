@@ -1,30 +1,60 @@
 module hello_world::shui {
     use std::option::{Self, Option};
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin, TreasuryCap, destroy_zero};
     use sui::transfer;
     use sui::object::{Self, ID, UID};
     use sui::tx_context::{Self, TxContext};
+    use std::vector::{Self};
+    use std::type_name::{get, into_string};
     use std::string;
-    use sui::balance::{Self, Balance};
-    // use sui::display;   
+    use std::ascii::String;
+    use sui::balance::{Self, Supply, Balance};
+    use sui::sui::SUI;
+    use sui::pay;
     use hello_world::race::{Self};
     use hello_world::level::{Self};
     use hello_world::gift::{Self};
     use hello_world::avatar::{Self};
-    // use sui::package;
+    use sui::table::{Self, Table};
+    use sui::bag::{Self, Bag};
 
     const ERR_CHARACTOR_CREATED:u64 = 0x001;
     const ERR_BINDED:u64 = 0x002;
     const ERR_UNBINDED:u64 = 0x003;
+    const ERR_NO_PERMISSION:u64 = 0x004;
+    const ERR_NOT_IN_WHITELIST:u64 = 0x005;
+    const EXCEED_SWAP_LIMIT:u64 = 0x006;
+    const TOTAL_SUPPLY: u64 = 2_100_000_000;
+    const AIRDROP_SUPPLY:u64 = 500_000_000;
+    const GAME_GAME_SUPPLY:u64 = 1_000_000_000;
+    const GOLD_RESERVE_SUPPLY:u64 = 300_000_000;
+    const EXCHANGE_SUPPLY:u64 = 100_000_000;
+    const FOUNDATION_SUPPLY:u64 = 100_000_000;
+    const DAO_SUPPLY:u64 = 100_000_000;
+    const AMOUNT_CREATOR_SWAP:u64 = 5_000_000;
+    const AMOUNT_PER_MEMBER_SWAP_LIMIT:u64 = 500_000;
+    const AMOUNT_PER_IDO_SWAP_LIMIT:u64 = 100_000;
+    const AMOUNT_PER_AIRDROP_SWAP_LIMIT:u64 = 10_000;
 
-    // to be determined
-    const MAX_SUPPLY: u16 = 10000;
-    
+    const CREATOR_SWAP_RATIO:u64 = 1000;
+    const MEMBER_SWAP_RATIO:u64 = 500;
+    const IDO_SWAP_RATIO:u64 = 250;
+    const AIRDROP_SWAP_RATIO:u64 = 250;
+    const PUBLIC_SWAP_RATIO:u64 = 100;
+
+    struct SHUI has drop {}
     struct Global has key {
         id: UID,
+        supply: u64,
+        balance: Balance<SUI>,
         creator: address,
-        supply: u16,
-        balance: Balance<SHUI>,
+        members: Table<address, bool>,
+        ido_whitelist: Table<address, bool>,
+        airdrop_whitelist: Table<address, bool>,
+        swap_amount_records: Table<address, u64>,
+        minted_members_count: u16,
+        minted_ido_count: u16,
+        minted_airdrop_count: u16,
     }
 
     struct MetaIdentify has key, store {
@@ -37,6 +67,12 @@ module hello_world::shui {
         charactor: Option<Inscription>,
         bind:Option<Bind>,
         // wallet:address // is it necessay??
+    }
+
+    struct Faucet has key {
+        id: UID,
+        bags: Bag,
+        creator: address
     }
 
     struct Inscription has store {
@@ -54,8 +90,6 @@ module hello_world::shui {
         phone:string::String
     }
 
-    struct SHUI has drop{}
-
     fun init(witness: SHUI, ctx: &mut TxContext) {
         let (adminCap, metadata) = coin::create_currency(witness, 
             6,
@@ -65,15 +99,34 @@ module hello_world::shui {
             option::none(), 
             ctx);
         transfer::public_freeze_object(metadata);
-
         let global = Global {
             id: object::new(ctx),
             creator: tx_context::sender(ctx),
-            supply: MAX_SUPPLY,
+            supply: TOTAL_SUPPLY,
             balance: balance::zero(),
+            members: table::new<address, bool>(ctx),
+            ido_whitelist: table::new<address, bool>(ctx),
+            airdrop_whitelist: table::new<address, bool>(ctx),
+            swap_amount_records: table::new<address, u64>(ctx),
+            minted_members_count: 0,
+            minted_ido_count: 0,
+            minted_airdrop_count: 0,
         };
         transfer::share_object(global);
+        transfer::share_object(
+            Faucet {
+                id: object::new(ctx),
+                bags: get_bags(ctx),
+                creator: tx_context::sender(ctx),
+            }
+        );
         transfer::public_transfer(adminCap, tx_context::sender(ctx));
+    }
+
+    fun get_bags(ctx: &mut TxContext): Bag {
+        let coins = bag::new(ctx);
+        bag::add(&mut coins, into_string(get<SHUI>()), balance::create_supply(SHUI {}));
+        coins
     }
 
     public fun createMetaIdentify(name:string::String, ctx: &mut TxContext) : MetaIdentify{
@@ -109,9 +162,92 @@ module hello_world::shui {
         };
         option::fill(&mut identity.charactor, new_cha);
     }
-    
-    public fun mint(treasuryCap: &mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) :Coin<SHUI>{
+
+    public fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
         coin::mint(treasuryCap, amount, ctx)
+    }
+
+    public fun mint_coins<T>(
+        faucet: &mut Faucet,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<T> {
+        let coin_name = into_string(get<T>());
+        assert!(
+            bag::contains_with_type<String, Supply<T>>(&faucet.bags, coin_name),
+            0x04
+        );
+        let mut_supply = bag::borrow_mut<String, Supply<T>>(
+            &mut faucet.bags,
+            coin_name
+        );
+        let minted_balance = balance::increase_supply(
+            mut_supply,
+            amount
+        );
+        coin::from_balance(minted_balance, ctx)
+    }
+
+    // swap
+    public entry fun creator_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let radio = CREATOR_SWAP_RATIO;
+        let limit = AMOUNT_CREATOR_SWAP;
+        swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
+    }
+
+    public entry fun members_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let radio = MEMBER_SWAP_RATIO;
+        let limit = AMOUNT_PER_MEMBER_SWAP_LIMIT;
+        swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
+    }
+
+    public entry fun ido_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let radio = IDO_SWAP_RATIO;
+        let limit = AMOUNT_PER_IDO_SWAP_LIMIT;
+        swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
+    }
+
+    public entry fun airdrop_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let radio = AIRDROP_SWAP_RATIO;
+        let limit = AMOUNT_PER_AIRDROP_SWAP_LIMIT;
+        swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
+    }
+
+    public entry fun public_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let radio = PUBLIC_SWAP_RATIO;
+        let limit = TOTAL_SUPPLY;
+        swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
+    }
+
+    public fun swap_internal<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, radio:u64, limit:u64, ctx:&mut TxContext) {
+        let account = tx_context::sender(ctx);
+        assert!(table::contains(&global.members, account), ERR_NOT_IN_WHITELIST);
+        let merged_coin = vector::pop_back(&mut coins);
+        pay::join_vec(&mut merged_coin, coins);
+
+        // TODO:CHANGE TO LEFT
+        assert!(coin::value(&merged_coin) <= limit, EXCEED_SWAP_LIMIT);
+
+        let balance = coin::into_balance<SUI>(
+            coin::split<SUI>(&mut merged_coin, sui_pay_amount, ctx)
+        );
+
+        balance::join(&mut global.balance, balance);
+
+        // transfer remain to account
+        if (coin::value(&merged_coin) > 0) {
+            transfer::public_transfer(merged_coin, tx_context::sender(ctx))
+        } else {
+            destroy_zero(merged_coin)
+        };
+
+        // transfer SHUI to account 1:500
+        let shui_amount = sui_pay_amount * radio;
+        let coins = mint_coins<SHUI>(faucet, shui_amount, ctx);
+        transfer::public_transfer(coins, tx_context::sender(ctx));
+
+        // record the swaped amount
+        table::add(&mut global.swap_amount_records, account, shui_amount);
     }
 
     public entry fun burn<T>(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
@@ -153,5 +289,50 @@ module hello_world::shui {
     public entry fun transferMeta(meta: MetaIdentify, receiver:address) {
         unbindMeta(&mut meta);
         transfer::public_transfer(meta, receiver);
+    }
+
+    public entry fun add_member_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        table::add(&mut global.members, account, true);
+    }
+
+    public entry fun add_ido_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        table::add(&mut global.ido_whitelist, account, true);
+    }
+
+    public entry fun add_airdrop_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        table::add(&mut global.airdrop_whitelist, account, true);
+    }
+
+    public entry fun set_member_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let (i, len) = (0u64, vector::length(&whitelist));
+        while (i < len) {
+            let account = vector::pop_back(&mut whitelist);
+            table::add(&mut global.members, account, true);
+            i = i + 1
+        };
+    }
+
+    public entry fun set_ido_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let (i, len) = (0u64, vector::length(&whitelist));
+        while (i < len) {
+            let account = vector::pop_back(&mut whitelist);
+            table::add(&mut global.ido_whitelist, account, true);
+            i = i + 1
+        };
+    }
+
+    public entry fun set_airdrop_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let (i, len) = (0u64, vector::length(&whitelist));
+        while (i < len) {
+            let account = vector::pop_back(&mut whitelist);
+            table::add(&mut global.airdrop_whitelist, account, true);
+            i = i + 1
+        };
     }
 }
