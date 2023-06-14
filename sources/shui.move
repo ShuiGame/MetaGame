@@ -18,6 +18,13 @@ module hello_world::shui {
     use sui::table::{Self, Table};
     use sui::bag::{Self, Bag};
 
+
+    const TYPE_CREATOR:u8 = 0;
+    const TYPE_MEMBER:u8 = 1;
+    const TYPE_IDO:u8 = 2;
+    const TYPE_AIRDROP:u8 = 3;
+    const TYPE_PUBLIC:u8 = 4;
+
     const ERR_CHARACTOR_CREATED:u64 = 0x001;
     const ERR_BINDED:u64 = 0x002;
     const ERR_UNBINDED:u64 = 0x003;
@@ -49,6 +56,7 @@ module hello_world::shui {
         balance: Balance<SUI>,
         creator: address,
         members: Table<address, bool>,
+        tables: Table<u8, Table<address, bool>>,
         ido_whitelist: Table<address, bool>,
         airdrop_whitelist: Table<address, bool>,
         swap_amount_records: Table<address, u64>,
@@ -104,6 +112,7 @@ module hello_world::shui {
             creator: tx_context::sender(ctx),
             supply: TOTAL_SUPPLY,
             balance: balance::zero(),
+            tables: get_tables(ctx),
             members: table::new<address, bool>(ctx),
             ido_whitelist: table::new<address, bool>(ctx),
             airdrop_whitelist: table::new<address, bool>(ctx),
@@ -123,6 +132,16 @@ module hello_world::shui {
         transfer::public_transfer(adminCap, tx_context::sender(ctx));
     }
 
+    fun get_tables(ctx: &mut TxContext): Table<u8, Table<address, bool>> {
+        let tables = table::new<u8, Table<address, bool>>(ctx);
+        table::add(&mut tables, TYPE_CREATOR, table::new<address, bool>(ctx));
+        table::add(&mut tables, TYPE_MEMBER, table::new<address, bool>(ctx));
+        table::add(&mut tables, TYPE_IDO, table::new<address, bool>(ctx));        
+        table::add(&mut tables, TYPE_AIRDROP, table::new<address, bool>(ctx));
+        table::add(&mut tables, TYPE_PUBLIC, table::new<address, bool>(ctx));
+        tables
+    }
+
     fun get_bags(ctx: &mut TxContext): Bag {
         let coins = bag::new(ctx);
         bag::add(&mut coins, into_string(get<SHUI>()), balance::create_supply(SHUI {}));
@@ -133,6 +152,8 @@ module hello_world::shui {
         // exist judgement
         // bind judgement
         let obj_id = object::new(ctx); 
+
+        // tbd
         let game_id = object::uid_to_inner(&obj_id);
         MetaIdentify {
             id:obj_id,
@@ -188,28 +209,31 @@ module hello_world::shui {
         coin::from_balance(minted_balance, ctx)
     }
 
-    // swap
     public entry fun creator_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let radio = CREATOR_SWAP_RATIO;
         let limit = AMOUNT_CREATOR_SWAP;
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
     }
 
     public entry fun members_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let radio = MEMBER_SWAP_RATIO;
         let limit = AMOUNT_PER_MEMBER_SWAP_LIMIT;
+        assert!(table::contains(&global.members, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
         swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
     }
 
     public entry fun ido_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let radio = IDO_SWAP_RATIO;
         let limit = AMOUNT_PER_IDO_SWAP_LIMIT;
+        assert!(table::contains(&global.ido_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
         swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
     }
 
     public entry fun airdrop_swap<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let radio = AIRDROP_SWAP_RATIO;
         let limit = AMOUNT_PER_AIRDROP_SWAP_LIMIT;
+        assert!(table::contains(&global.airdrop_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
         swap_internal<T>(faucet, global, sui_pay_amount, coins, radio, limit, ctx);
     }
 
@@ -221,7 +245,6 @@ module hello_world::shui {
 
     public fun swap_internal<T> (faucet: &mut Faucet, global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, radio:u64, limit:u64, ctx:&mut TxContext) {
         let account = tx_context::sender(ctx);
-        assert!(table::contains(&global.members, account), ERR_NOT_IN_WHITELIST);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
 
@@ -268,7 +291,6 @@ module hello_world::shui {
     }
 
     public entry fun unbindMeta(meta:&mut MetaIdentify) {
-        // confition: binded
         assert!(option::is_some(&meta.bind), ERR_UNBINDED);
         let bind_read = option::borrow(&meta.bind);
         assert!(bind_read.status == true, ERR_BINDED);
@@ -291,47 +313,25 @@ module hello_world::shui {
         transfer::public_transfer(meta, receiver);
     }
 
-    public entry fun add_member_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
+    public entry fun add_to_whitelist(global: &mut Global, account: address, list_type:u8, ctx: &mut TxContext,) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        table::add(&mut global.members, account, true);
+        let tablelist = table::borrow_mut<u8, Table<address, bool>>(
+            &mut global.tables,
+            list_type
+        );
+        table::add(tablelist, account, true);
     }
 
-    public entry fun add_ido_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        table::add(&mut global.ido_whitelist, account, true);
-    }
-
-    public entry fun add_airdrop_whitelist(global: &mut Global, account: address, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        table::add(&mut global.airdrop_whitelist, account, true);
-    }
-
-    public entry fun set_member_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
+    public entry fun set_whitelists(global: &mut Global, whitelist: vector<address>, list_type:u8, ctx: &mut TxContext,) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&whitelist));
+        let tablelist = table::borrow_mut<u8, Table<address, bool>>(
+            &mut global.tables,
+            list_type
+        );
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.members, account, true);
-            i = i + 1
-        };
-    }
-
-    public entry fun set_ido_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.ido_whitelist, account, true);
-            i = i + 1
-        };
-    }
-
-    public entry fun set_airdrop_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.airdrop_whitelist, account, true);
+            table::add(tablelist, account, true);
             i = i + 1
         };
     }
