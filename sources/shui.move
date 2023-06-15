@@ -2,7 +2,7 @@ module hello_world::shui {
     use std::option::{Self};
     use sui::coin::{Self, Coin, TreasuryCap, destroy_zero};
     use sui::transfer;
-    use sui::object::{Self, ID, UID};
+    use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
     use std::vector::{Self};
     use std::string;
@@ -83,6 +83,8 @@ module hello_world::shui {
         
         ido_swap_left:u16,
         airdrop_swap_left:u16,
+
+        players_count:u64,
     }
 
     struct MetaIdentify has key {
@@ -90,7 +92,7 @@ module hello_world::shui {
         id:UID,
 
         // changeto ID
-        metaId:ID,
+        metaId:u64,
         name:string::String,
         charactor: Inscription,
         bind:Bind,
@@ -98,7 +100,6 @@ module hello_world::shui {
     }
 
     struct Inscription has store {
-        id:UID,
         name: string::String,
         gender: string::String,
         avatar: avatar::Avatar,
@@ -108,7 +109,6 @@ module hello_world::shui {
     }
 
     struct Bind has store {
-        id:UID,
         status:bool,
         phone:string::String
     }
@@ -147,6 +147,8 @@ module hello_world::shui {
 
             ido_swap_left:0,
             airdrop_swap_left:0,
+
+            players_count:0,
         };
         let total_shui = mint(&mut adminCap, TOTAL_SUPPLY, ctx);
         transfer::public_transfer(adminCap, tx_context::sender(ctx));
@@ -158,35 +160,36 @@ module hello_world::shui {
         transfer::share_object(global);
     }
 
-    public fun createMetaIdentify(name:string::String, ctx: &mut TxContext) {
+    public entry fun createMetaIdentify(global: &mut Global, name:string::String, ctx: &mut TxContext) {
         // exist judgement
         // bind judgement
-        let obj_id = object::new(ctx); 
+        global.players_count = global.players_count + 1;
+        let metaId = 0;
 
-        // tbd
-        let game_id = object::uid_to_inner(&obj_id);
+        // start from 20000 if not internal
+        if (global.creator != tx_context::sender(ctx)) {
+            metaId = metaId + 20_000;
+        }; 
         let meta = MetaIdentify {
-            id:obj_id,
-            metaId:game_id,
+            id:object::new(ctx),
+            metaId:metaId,
             name:name,
-            charactor:new_empty_charactor(ctx),
-            bind:new_empty_bind(ctx),
+            charactor:new_empty_charactor(),
+            bind:new_empty_bind(),
             addr:tx_context::sender(ctx),
         };
         transfer::transfer(meta, tx_context::sender(ctx));
     }
 
-    fun new_empty_bind(ctx:&mut TxContext): Bind {
-        Bind {
-            id:object::new(ctx),       
+    fun new_empty_bind(): Bind {
+        Bind {      
             phone:string::utf8(b""),
             status:false
         }
     }
 
-    fun new_empty_charactor(ctx:&mut TxContext):Inscription {
+    fun new_empty_charactor():Inscription {
         Inscription{
-            id:object::new(ctx),
             name:string::utf8(b""),
             gender: string::utf8(b""),
             avatar: avatar::none(),
@@ -202,8 +205,7 @@ module hello_world::shui {
         gender: string::String,
         avatar: avatar::Avatar,
         race: race::Race,
-        gift: gift::Gift,
-        _: &mut TxContext) {
+        gift: gift::Gift) {
         let charactor = &mut identity.charactor;
         charactor.name = name;
         charactor.gender = gender;
@@ -293,13 +295,11 @@ module hello_world::shui {
     }
 
     fun destroy_bind(bind:Bind) {
-        let Bind { id, status:_, phone:_} = bind;
-        object::delete(id);
+        let Bind { status:_, phone:_} = bind;
     }
 
     fun destroy_charactor(charactor: Inscription) {
-        let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
-        object::delete(id);
+        let Inscription {name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
     }
 
     public entry fun transferMeta(meta: MetaIdentify, receiver:address) {
