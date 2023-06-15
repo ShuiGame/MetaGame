@@ -66,12 +66,12 @@ module hello_world::shui {
         founder: address,
         co_founder: address,
         engine_team: address,
-        tech_whitelist: Table<address, bool>,
-        promote_whitelist: Table<address, bool>,
-        partner_whitelist: Table<address, bool>,
+        tech_whitelist: Table<address, u64>,
+        promote_whitelist: Table<address, u64>,
+        partner_whitelist: Table<address, u64>,
 
-        ido_whitelist: Table<address, bool>,
-        airdrop_whitelist: Table<address, bool>,
+        ido_whitelist: Table<address, u64>,
+        airdrop_whitelist: Table<address, u64>,
 
         founder_reserve_left: u16,
         co_founder_reserve_left: u16,
@@ -130,11 +130,11 @@ module hello_world::shui {
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
 
-            partner_whitelist: table::new<address, bool>(ctx),
-            tech_whitelist: table::new<address, bool>(ctx),
-            promote_whitelist:  table::new<address, bool>(ctx),
-            ido_whitelist: table::new<address, bool>(ctx),
-            airdrop_whitelist: table::new<address, bool>(ctx),
+            partner_whitelist: table::new<address, u64>(ctx),
+            tech_whitelist: table::new<address, u64>(ctx),
+            promote_whitelist:  table::new<address, u64>(ctx),
+            ido_whitelist: table::new<address, u64>(ctx),
+            airdrop_whitelist: table::new<address, u64>(ctx),
 
             co_founder_reserve_left: 1,
             founder_reserve_left: 1,
@@ -154,14 +154,6 @@ module hello_world::shui {
 
         balance::join(&mut global.balance_SHUI, balance);
         transfer::share_object(global);
-    }
-
-    fun get_tables(ctx: &mut TxContext): Table<u8, Table<address, bool>> {
-        let tables = table::new<u8, Table<address, bool>>(ctx);
-        table::add(&mut tables, TYPE_IDO, table::new<address, bool>(ctx));        
-        table::add(&mut tables, TYPE_AIRDROP, table::new<address, bool>(ctx));
-        table::add(&mut tables, TYPE_PUBLIC, table::new<address, bool>(ctx));
-        tables
     }
 
     public fun createMetaIdentify(name:string::String, ctx: &mut TxContext) : MetaIdentify{
@@ -205,23 +197,29 @@ module hello_world::shui {
     }
 
     public entry fun ido_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let radio = IDO_SWAP_RATIO;
+        let ratio = IDO_SWAP_RATIO;
         let limit = AMOUNT_PER_IDO_SWAP_LIMIT;
-        assert!(table::contains(&global.ido_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
-        swap_internal<T>(global, sui_pay_amount, coins, radio, limit, ctx);
+        let recepient = tx_context::sender(ctx);
+        assert!(table::contains(&global.ido_whitelist, recepient), ERR_NOT_IN_WHITELIST);
+        assert!(has_swap_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
+        record_swaped_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient);
     }
 
     public entry fun airdrop_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let radio = AIRDROP_SWAP_RATIO;
+        let ratio = AIRDROP_SWAP_RATIO;
         let limit = AMOUNT_PER_AIRDROP_SWAP_LIMIT;
+        let recepient = tx_context::sender(ctx);
         assert!(table::contains(&global.airdrop_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
-        swap_internal<T>(global, sui_pay_amount, coins, radio, limit, ctx);
+        assert!(has_swap_amount(&mut global.airdrop_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
+        record_swaped_amount(&mut global.airdrop_whitelist, sui_pay_amount * ratio, recepient);
     }
 
     public entry fun public_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let radio = PUBLIC_SWAP_RATIO;
+        let ratio = PUBLIC_SWAP_RATIO;
         let limit = TOTAL_SUPPLY;
-        swap_internal<T>(global, sui_pay_amount, coins, radio, limit, ctx);
+        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
     }
 
     public fun swap_internal<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ratio:u64, limit:u64, ctx:&mut TxContext) {
@@ -251,8 +249,6 @@ module hello_world::shui {
         let shui = coin::from_balance(airdrop_balance, ctx);
 
         transfer::public_transfer(shui, account);
-
-        // todo: record the swaped shui amount
     }
 
     public entry fun burn<T>(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
@@ -300,7 +296,7 @@ module hello_world::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.ido_whitelist, account, true);
+            table::add(&mut global.ido_whitelist, account, 100_000);
             i = i + 1
         };
     }
@@ -310,7 +306,7 @@ module hello_world::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.airdrop_whitelist, account, true);
+            table::add(&mut global.airdrop_whitelist, account, 10_000);
             i = i + 1
         };
     }
@@ -378,5 +374,15 @@ module hello_world::shui {
         assert!(global.partner_team_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
         transfer_reserve(global, PARTNER_PER_RESERVE, ctx);
         global.partner_team_reserve_left = global.partner_team_reserve_left - 1;
+    }
+
+    public fun record_swaped_amount(table: &mut Table<address, u64>, amount_culmulate:u64, recepient: address) {
+        let value = table::remove(table, recepient);
+        table::add(table, recepient, value + amount_culmulate);
+    }
+
+    public fun has_swap_amount(table: &mut Table<address, u64>, amount_to_swap:u64, recepient: address): bool {
+       let left_amount = *table::borrow(table, recepient);
+       left_amount >= amount_to_swap
     }
 }
