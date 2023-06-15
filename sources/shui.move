@@ -226,8 +226,6 @@ module hello_world::shui {
         let account = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-
-        // todo:record the left reserve
         assert!(coin::value(&merged_coin) <= limit, EXCEED_SWAP_LIMIT);
 
         let balance = coin::into_balance<SUI>(
