@@ -1,5 +1,5 @@
 module hello_world::shui {
-    use std::option::{Self, Option};
+    use std::option::{Self};
     use sui::coin::{Self, Coin, TreasuryCap, destroy_zero};
     use sui::transfer;
     use sui::object::{Self, ID, UID};
@@ -33,6 +33,7 @@ module hello_world::shui {
     const ERR_NOT_IN_WHITELIST:u64 = 0x005;
     const EXCEED_SWAP_LIMIT:u64 = 0x006;
     const ERR_BALANCE_NOT_ENOUGH:u64 = 0x007;
+    const ERR_ALREADY_BIND:u64 = 0x008;
 
     const CO_FOUNDER_PER_RESERVE:u64 = 3_000_000;
     const FOUNDER_PER_RESERVE:u64 = 4_000_000;
@@ -84,19 +85,20 @@ module hello_world::shui {
         airdrop_swap_left:u16,
     }
 
-    struct MetaIdentify has key, store {
+    struct MetaIdentify has key {
         // preserve 0-20000 for airdrop
         id:UID,
 
         // changeto ID
         metaId:ID,
         name:string::String,
-        charactor: Option<Inscription>,
-        bind:Option<Bind>,
-        // wallet:address // is it necessay??
+        charactor: Inscription,
+        bind:Bind,
+        addr:address,
     }
 
     struct Inscription has store {
+        id:UID,
         name: string::String,
         gender: string::String,
         avatar: avatar::Avatar,
@@ -105,7 +107,7 @@ module hello_world::shui {
         gift: gift::Gift,
     }
 
-    struct Bind has key, store {
+    struct Bind has store {
         id:UID,
         status:bool,
         phone:string::String
@@ -156,19 +158,41 @@ module hello_world::shui {
         transfer::share_object(global);
     }
 
-    public fun createMetaIdentify(name:string::String, ctx: &mut TxContext) : MetaIdentify{
+    public fun createMetaIdentify(name:string::String, ctx: &mut TxContext) {
         // exist judgement
         // bind judgement
         let obj_id = object::new(ctx); 
 
         // tbd
         let game_id = object::uid_to_inner(&obj_id);
-        MetaIdentify {
+        let meta = MetaIdentify {
             id:obj_id,
             metaId:game_id,
             name:name,
-            charactor:option::none(),
-            bind:option::none(),
+            charactor:new_empty_charactor(ctx),
+            bind:new_empty_bind(ctx),
+            addr:tx_context::sender(ctx),
+        };
+        transfer::transfer(meta, tx_context::sender(ctx));
+    }
+
+    fun new_empty_bind(ctx:&mut TxContext): Bind {
+        Bind {
+            id:object::new(ctx),       
+            phone:string::utf8(b""),
+            status:false
+        }
+    }
+
+    fun new_empty_charactor(ctx:&mut TxContext):Inscription {
+        Inscription{
+            id:object::new(ctx),
+            name:string::utf8(b""),
+            gender: string::utf8(b""),
+            avatar: avatar::none(),
+            race: race::none(),
+            level: level::new_level(),
+            gift: gift::none(),
         }
     }
 
@@ -180,16 +204,12 @@ module hello_world::shui {
         race: race::Race,
         gift: gift::Gift,
         _: &mut TxContext) {
-        assert!(!option::is_some(&identity.charactor), ERR_CHARACTOR_CREATED);
-        let new_cha = Inscription{
-            name:name,
-            gender: gender,
-            avatar: avatar,
-            race: race,
-            level: level::new_level(),
-            gift: gift,
-        };
-        option::fill(&mut identity.charactor, new_cha);
+        let charactor = &mut identity.charactor;
+        charactor.name = name;
+        charactor.gender = gender;
+        charactor.avatar = avatar;
+        charactor.race = race;
+        charactor.gift = gift;
     }
 
     public fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
@@ -253,40 +273,38 @@ module hello_world::shui {
         coin::burn(treasury, coin);
     }
 
-    public entry fun bindMeta(meta:&mut MetaIdentify, phone:string::String, ctx: &mut TxContext) {
-        // confition: unbinded
-        if (option::is_some(&meta.bind)) {
-            let bind_read = option::borrow(&meta.bind);
-            assert!(bind_read.status == false, ERR_BINDED);
-        };
-        option::fill(&mut meta.bind, Bind {
-            id:object::new(ctx),       
-            phone:phone,
-            status:true
-        });
+    public entry fun bindMeta(meta:&mut MetaIdentify, phone:string::String) {
+        assert!(meta.bind.status == false, ERR_ALREADY_BIND);
+        meta.bind.phone = phone;
+        meta.bind.status = true;
     }
 
     public entry fun unbindMeta(meta:&mut MetaIdentify) {
-        assert!(option::is_some(&meta.bind), ERR_UNBINDED);
-        let bind_read = option::borrow(&meta.bind);
-        assert!(bind_read.status == true, ERR_BINDED);
-        let bind_read = option::borrow_mut(&mut meta.bind);
-        bind_read.status = false;
+        assert!(meta.bind.status == true, ERR_UNBINDED);
+        meta.bind.phone = string::utf8(b"");
+        meta.bind.status = false;
     }
 
     public entry fun deleteMeta(meta: MetaIdentify) {
-        let MetaIdentify {id, metaId:_, name:_, charactor, bind} = meta;
+        let MetaIdentify {id, metaId:_, name:_, addr:_, charactor, bind} = meta;
         object::delete(id);
-        let bind = option::destroy_some(bind);
-        let cha = option::destroy_some(charactor);
+        destroy_bind(bind);
+        destroy_charactor(charactor)
+    }
+
+    fun destroy_bind(bind:Bind) {
         let Bind { id, status:_, phone:_} = bind;
         object::delete(id);
-        let Inscription {name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = cha;
+    }
+
+    fun destroy_charactor(charactor: Inscription) {
+        let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
+        object::delete(id);
     }
 
     public entry fun transferMeta(meta: MetaIdentify, receiver:address) {
         unbindMeta(&mut meta);
-        transfer::public_transfer(meta, receiver);
+        transfer::transfer(meta, receiver);
     }
 
     public entry fun set_ido_swap_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {

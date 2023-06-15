@@ -1,5 +1,6 @@
 module hello_world::gift {
     use std::string;
+
     struct Gift has store, copy, drop {
         gift:string::String,
     }
@@ -8,9 +9,15 @@ module hello_world::gift {
         return data.gift
     }
 
-    public entry fun new_Gift(): Gift{
+    public entry fun new_Gift(gift_json:string::String): Gift{
         Gift {
-            gift:string::utf8(b"none")
+            gift:gift_json
+        }
+    }
+
+    public entry fun none() : Gift {
+        Gift {
+            gift:string::utf8(b"")
         }
     }
 }

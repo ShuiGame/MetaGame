@@ -14,6 +14,12 @@ module hello_world::avatar {
         }
     }
 
+    public fun none(): Avatar{
+        Avatar {
+            url:string::utf8(b"")
+        }
+    }
+
     public fun set_icon(avatar:&mut Avatar, url:string::String) {
         avatar.url = url;
     }

@@ -8,4 +8,10 @@ module hello_world::race {
     public fun category(data: &Race): string::String {
         return data.category
     }
+    public fun none(): Race {
+        Race {
+            category:string::utf8(b""),
+            desc:string::utf8(b"")
+        }
+    }
 }

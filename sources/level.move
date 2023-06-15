@@ -12,4 +12,10 @@ module hello_world::level {
             level:1
         }
     }
+
+    public entry fun none(): Level{
+        Level {
+            level:0
+        }
+    }
 }
