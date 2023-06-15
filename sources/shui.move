@@ -90,8 +90,6 @@ module hello_world::shui {
     struct MetaIdentify has key {
         // preserve 0-20000 for airdrop
         id:UID,
-
-        // changeto ID
         metaId:u64,
         name:string::String,
         charactor: Inscription,
@@ -99,7 +97,9 @@ module hello_world::shui {
         addr:address,
     }
 
-    struct Inscription has store {
+    // conflict 
+    struct Inscription has key, store {
+        id:UID,
         name: string::String,
         gender: string::String,
         avatar: avatar::Avatar,
@@ -174,7 +174,7 @@ module hello_world::shui {
             id:object::new(ctx),
             metaId:metaId,
             name:name,
-            charactor:new_empty_charactor(),
+            charactor:new_empty_charactor(ctx),
             bind:new_empty_bind(),
             addr:tx_context::sender(ctx),
         };
@@ -188,8 +188,9 @@ module hello_world::shui {
         }
     }
 
-    fun new_empty_charactor():Inscription {
+    fun new_empty_charactor(ctx: &mut TxContext):Inscription {
         Inscription{
+            id:object::new(ctx),
             name:string::utf8(b""),
             gender: string::utf8(b""),
             avatar: avatar::none(),
@@ -199,19 +200,8 @@ module hello_world::shui {
         }
     }
 
-    fun createCharactor(
-        identity:&mut MetaIdentify,
-        name: string::String,
-        gender: string::String,
-        avatar: avatar::Avatar,
-        race: race::Race,
-        gift: gift::Gift) {
-        let charactor = &mut identity.charactor;
-        charactor.name = name;
-        charactor.gender = gender;
-        charactor.avatar = avatar;
-        charactor.race = race;
-        charactor.gift = gift;
+    public entry fun change_gift(charactor:&mut Inscription, gift:string::String) {
+        charactor.gift = gift::new_gift(gift);
     }
 
     public fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
@@ -299,7 +289,8 @@ module hello_world::shui {
     }
 
     fun destroy_charactor(charactor: Inscription) {
-        let Inscription {name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
+        let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
+        object::delete(id);
     }
 
     public entry fun transferMeta(meta: MetaIdentify, receiver:address) {

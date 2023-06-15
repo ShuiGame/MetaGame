@@ -9,7 +9,7 @@ module hello_world::gift {
         return data.gift
     }
 
-    public entry fun new_Gift(gift_json:string::String): Gift{
+    public entry fun new_gift(gift_json:string::String): Gift{
         Gift {
             gift:gift_json
         }
