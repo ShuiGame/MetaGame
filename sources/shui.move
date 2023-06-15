@@ -348,14 +348,35 @@ module hello_world::shui {
     public entry fun claim_founder_reserve(global: &mut Global, ctx:&mut TxContext) {
         assert!(global.founder == tx_context::sender(ctx), ERR_NO_PERMISSION);
         assert!(global.founder_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
-        transfer_reserve(global, CO_FOUNDER_PER_RESERVE, ctx);
+        transfer_reserve(global, FOUNDER_PER_RESERVE, ctx);
         global.founder_reserve_left = global.founder_reserve_left - 1;
     }
 
     public entry fun claim_engine_team_reserve(global: &mut Global, ctx:&mut TxContext) {
         assert!(global.engine_team == tx_context::sender(ctx), ERR_NO_PERMISSION);
         assert!(global.engine_team_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
-        transfer_reserve(global, CO_FOUNDER_PER_RESERVE, ctx);
+        transfer_reserve(global, ENGINE_TEAM_PER_RESERVE, ctx);
         global.engine_team_reserve_left = global.engine_team_reserve_left - 1;
+    }
+
+    public entry fun claim_tech_team_reserve(global: &mut Global, ctx:&mut TxContext) {
+        assert!(table::contains(&global.tech_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
+        assert!(global.tech_team_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
+        transfer_reserve(global, TECH_TEAM_PER_RESERVE, ctx);
+        global.tech_team_reserve_left = global.tech_team_reserve_left - 1;
+    }
+
+    public entry fun claim_promote_team_reserve(global: &mut Global, ctx:&mut TxContext) {
+        assert!(table::contains(&global.tech_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
+        assert!(global.promote_team_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
+        transfer_reserve(global, PROMOTE_TEAM_PER_RESERVE, ctx);
+        global.promote_team_reserve_left = global.promote_team_reserve_left - 1;
+    }
+
+    public entry fun claim_partner_reserve(global: &mut Global, ctx:&mut TxContext) {
+        assert!(table::contains(&global.tech_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
+        assert!(global.partner_team_reserve_left > 0, ERR_BALANCE_NOT_ENOUGH);
+        transfer_reserve(global, PARTNER_PER_RESERVE, ctx);
+        global.partner_team_reserve_left = global.partner_team_reserve_left - 1;
     }
 }
