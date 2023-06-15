@@ -376,7 +376,7 @@ module hello_world::shui {
 
     public fun record_swaped_amount(table: &mut Table<address, u64>, amount_culmulate:u64, recepient: address) {
         let value = table::remove(table, recepient);
-        table::add(table, recepient, value + amount_culmulate);
+        table::add(table, recepient, value - amount_culmulate);
     }
 
     public fun has_swap_amount(table: &mut Table<address, u64>, amount_to_swap:u64, recepient: address): bool {
