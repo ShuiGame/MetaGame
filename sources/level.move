@@ -1,4 +1,4 @@
-module hello_world::level {
+module shui_module::level {
     struct Level has store, copy, drop {
         level:u8,
     }

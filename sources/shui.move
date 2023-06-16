@@ -1,4 +1,4 @@
-module hello_world::shui {
+module shui_module::shui {
     use std::option::{Self};
     use sui::coin::{Self, Coin, TreasuryCap, destroy_zero};
     use sui::transfer;
@@ -9,10 +9,10 @@ module hello_world::shui {
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::pay;
-    use hello_world::race::{Self};
-    use hello_world::level::{Self};
-    use hello_world::gift::{Self};
-    use hello_world::avatar::{Self};
+    use shui_module::race::{Self};
+    use shui_module::level::{Self};
+    use shui_module::gift::{Self};
+    use shui_module::avatar::{Self};
     use sui::table::{Self, Table};
 
     const TYPE_FOUNDER:u8 = 0;
@@ -44,12 +44,13 @@ module hello_world::shui {
     const PARTNER_PER_RESERVE:u64 = 350_000;
 
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
+
+    const GAME_GAME_SUPPLY:u64 = 1_200_000_000;
     const AIRDROP_SUPPLY:u64 = 500_000_000;
-    const GAME_GAME_SUPPLY:u64 = 1_000_000_000;
-    const GOLD_RESERVE_SUPPLY:u64 = 300_000_000;
+    const GOLD_RESERVE_SUPPLY:u64 = 200_000_000;
     const EXCHANGE_SUPPLY:u64 = 100_000_000;
-    const FOUNDATION_SUPPLY:u64 = 100_000_000;
-    const DAO_SUPPLY:u64 = 100_000_000;
+    const FOUNDATION_SUPPLY:u64 = 50_000_000;
+    const DAO_SUPPLY:u64 = 50_000_000;
 
     const AMOUNT_PER_IDO_SUI_SWAP_LIMIT:u64 = 400;
     const AMOUNT_PER_AIRDROP_SUI_SWAP_LIMIT:u64 = 40;
@@ -153,7 +154,6 @@ module hello_world::shui {
         let balance = coin::into_balance<SHUI>(
             total_shui
         );
-
         balance::join(&mut global.balance_SHUI, balance);
         transfer::share_object(global);
     }
@@ -199,6 +199,24 @@ module hello_world::shui {
 
     public fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
         coin::mint(treasuryCap, amount, ctx)
+    }
+
+    // reserve shui for dao
+    public entry fun transfer_dao_reserve(global: &mut Global, ctx:&mut TxContext) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let account = @dao_reserve_wallet;
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, DAO_SUPPLY);
+        let shui = coin::from_balance(airdrop_balance, ctx);
+        transfer::public_transfer(shui, account);
+    }
+
+    // reserve shui for foundation
+    public entry fun transfer_foundation_reserve(global: &mut Global, ctx:&mut TxContext) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let account = @foundation_reserve_wallet;
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, FOUNDATION_SUPPLY);
+        let shui = coin::from_balance(airdrop_balance, ctx);
+        transfer::public_transfer(shui, account);
     }
 
     public entry fun ido_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {

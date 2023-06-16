@@ -1,4 +1,4 @@
-module hello_world::avatar {
+module shui_module::avatar {
     use std::string;
     struct Avatar has store, copy, drop {
         url:string::String,

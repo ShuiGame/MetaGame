@@ -1,4 +1,4 @@
-module hello_world::gift {
+module shui_module::gift {
     use std::string;
 
     struct Gift has store, copy, drop {
