@@ -34,6 +34,7 @@ module hello_world::shui {
     const EXCEED_SWAP_LIMIT:u64 = 0x006;
     const ERR_BALANCE_NOT_ENOUGH:u64 = 0x007;
     const ERR_ALREADY_BIND:u64 = 0x008;
+    const ERR_SWAP_MIN_ONE_SUI:u64 = 0x009;
 
     const CO_FOUNDER_PER_RESERVE:u64 = 3_000_000;
     const FOUNDER_PER_RESERVE:u64 = 4_000_000;
@@ -50,8 +51,8 @@ module hello_world::shui {
     const FOUNDATION_SUPPLY:u64 = 100_000_000;
     const DAO_SUPPLY:u64 = 100_000_000;
 
-    const AMOUNT_PER_IDO_SWAP_LIMIT:u64 = 100_000;
-    const AMOUNT_PER_AIRDROP_SWAP_LIMIT:u64 = 10_000;
+    const AMOUNT_PER_IDO_SUI_SWAP_LIMIT:u64 = 400;
+    const AMOUNT_PER_AIRDROP_SUI_SWAP_LIMIT:u64 = 40;
 
     const IDO_SWAP_RATIO:u64 = 250;
     const AIRDROP_SWAP_RATIO:u64 = 250;
@@ -158,8 +159,7 @@ module hello_world::shui {
     }
 
     public entry fun createMetaIdentify(global: &mut Global, name:string::String, ctx: &mut TxContext) {
-        // exist judgement
-        // bind judgement
+        // todo: exist judgement
         global.players_count = global.players_count + 1;
         let metaId = 0;
 
@@ -203,7 +203,7 @@ module hello_world::shui {
 
     public entry fun ido_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let ratio = IDO_SWAP_RATIO;
-        let limit = AMOUNT_PER_IDO_SWAP_LIMIT;
+        let limit = AMOUNT_PER_IDO_SUI_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);
         assert!(table::contains(&global.ido_whitelist, recepient), ERR_NOT_IN_WHITELIST);
         assert!(has_swap_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
@@ -213,7 +213,7 @@ module hello_world::shui {
 
     public entry fun airdrop_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let ratio = AIRDROP_SWAP_RATIO;
-        let limit = AMOUNT_PER_AIRDROP_SWAP_LIMIT;
+        let limit = AMOUNT_PER_AIRDROP_SUI_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);
         assert!(table::contains(&global.airdrop_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
         assert!(has_swap_amount(&mut global.airdrop_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
@@ -231,8 +231,8 @@ module hello_world::shui {
         let account = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) <= limit, EXCEED_SWAP_LIMIT);
-
+        assert!(coin::value(&merged_coin) >= 1, ERR_SWAP_MIN_ONE_SUI);
+        assert!(sui_pay_amount <= limit, ERR_SWAP_MIN_ONE_SUI);
         let balance = coin::into_balance<SUI>(
             coin::split<SUI>(&mut merged_coin, sui_pay_amount, ctx)
         );
