@@ -92,13 +92,15 @@ module hello_world::shui {
         id:UID,
         metaId:u64,
         name:string::String,
-        charactor: Inscription,
-        bind:Bind,
-        addr:address,
+        phone:string::String,
+        // necessary to bind email/phone
+        bind_status: bool,
+
+        bind_charactor: address,
     }
 
     // conflict 
-    struct Inscription has key, store {
+    struct Inscription has key {
         id:UID,
         name: string::String,
         gender: string::String,
@@ -106,11 +108,6 @@ module hello_world::shui {
         race: race::Race,
         level: level::Level,
         gift: gift::Gift,
-    }
-
-    struct Bind has store {
-        status:bool,
-        phone:string::String
     }
 
     fun init(witness: SHUI, ctx: &mut TxContext) {
@@ -170,22 +167,18 @@ module hello_world::shui {
         if (global.creator != tx_context::sender(ctx)) {
             metaId = metaId + 20_000;
         }; 
+
+        let charactor = new_empty_charactor(ctx);
         let meta = MetaIdentify {
             id:object::new(ctx),
             metaId:metaId,
             name:name,
-            charactor:new_empty_charactor(ctx),
-            bind:new_empty_bind(),
-            addr:tx_context::sender(ctx),
-        };
-        transfer::transfer(meta, tx_context::sender(ctx));
-    }
-
-    fun new_empty_bind(): Bind {
-        Bind {      
+            bind_charactor: object::uid_to_address(&charactor.id),
+            bind_status: false,
             phone:string::utf8(b""),
-            status:false
-        }
+        };
+        transfer::transfer(charactor, tx_context::sender(ctx));
+        transfer::transfer(meta, tx_context::sender(ctx));
     }
 
     fun new_empty_charactor(ctx: &mut TxContext):Inscription {
@@ -266,27 +259,22 @@ module hello_world::shui {
     }
 
     public entry fun bindMeta(meta:&mut MetaIdentify, phone:string::String) {
-        assert!(meta.bind.status == false, ERR_ALREADY_BIND);
-        meta.bind.phone = phone;
-        meta.bind.status = true;
+        assert!(meta.bind_status == false, ERR_ALREADY_BIND);
+        meta.phone = phone;
+        meta.bind_status = true;
     }
 
     public entry fun unbindMeta(meta:&mut MetaIdentify) {
-        assert!(meta.bind.status == true, ERR_UNBINDED);
-        meta.bind.phone = string::utf8(b"");
-        meta.bind.status = false;
+        assert!(meta.bind_status == true, ERR_UNBINDED);
+        meta.phone = string::utf8(b"");
+        meta.bind_status = false;
     }
 
     public entry fun deleteMeta(meta: MetaIdentify) {
-        let MetaIdentify {id, metaId:_, name:_, addr:_, charactor, bind} = meta;
+        let MetaIdentify {id, metaId:_, name:_, phone:_, bind_status:_, bind_charactor:_} = meta;
         object::delete(id);
-        destroy_bind(bind);
-        destroy_charactor(charactor)
     }
 
-    fun destroy_bind(bind:Bind) {
-        let Bind { status:_, phone:_} = bind;
-    }
 
     fun destroy_charactor(charactor: Inscription) {
         let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
