@@ -74,4 +74,20 @@ module shui_module::tree_of_life_record {
             i = i + 1;
         }
     }
+
+    public fun get_shui_token_pre_white_list(global: &mut Global, recommendAddr:address): &vector<address> {
+        table::borrow_mut(&mut global.shui_token_pre_white_list, recommendAddr)
+    }
+
+    public fun get_meta_game_pre_white_list(global: &mut Global, recommendAddr:address): &vector<address> {
+        table::borrow_mut(&mut global.meta_game_pre_white_list, recommendAddr)
+    }
+
+    public fun get_shui_token_white_list(global: &Global): &vector<address> {
+        &global.valid_shui_token_whitelist
+    }
+
+    public fun get_meta_game_white_list(global: &Global): &vector<address> {
+        &global.valid_meta_game_whitelist
+    }
 }
