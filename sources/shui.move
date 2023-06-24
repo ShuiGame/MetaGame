@@ -255,7 +255,7 @@ module shui_module::shui {
     }
 
     public entry fun partner_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L3;
+        let ratio = SWAP_RATIO_L2;
         let limit = PARTER_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);
         assert!(table::contains(&global.partner_whitelist, recepient), ERR_NOT_IN_WHITELIST);
@@ -265,7 +265,7 @@ module shui_module::shui {
     }
 
     public entry fun angle_invest_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L4;
+        let ratio = SWAP_RATIO_L3;
         let limit = LIMIT_L4;
         let recepient = tx_context::sender(ctx);
         assert!(table::contains(&global.angle_invest_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
