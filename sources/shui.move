@@ -14,17 +14,16 @@ module shui_module::shui {
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
     use sui::table::{Self, Table};
+    use shui_module::roles::{Self, RuleInfo};
 
-    const TYPE_FOUNDER:u8 = 0;
-    const TYPE_CO_FOUNDER:u8 = 1;
-    const TYPE_ENGINE_TEAM:u8 = 2;
-    const TYPE_TECH_TEAM:u8 = 3;
-    const TYPE_PROMOTE_TEAM:u8 = 4;
-    const TYPE_PARTNER:u8 = 5;
-
-    const TYPE_IDO:u8 = 6;
-    const TYPE_AIRDROP:u8 = 7;
-    const TYPE_PUBLIC:u8 = 8;
+    const TYPE_FOUNDER:u64 = 0;
+    const TYPE_CO_FOUNDER:u64 = 1;
+    const TYPE_ENGINE_TEAM:u64 = 2;
+    const TYPE_TECH_TEAM:u64 = 3;
+    const TYPE_PROMOTE_TEAM:u64 = 4;
+    const TYPE_PARTNER:u64 = 5;
+    const TYPE_ANGLE_INVEST:u64 = 6;
+    const TYPE_PUBLIC:u64 = 7;
 
     const ERR_CHARACTOR_CREATED:u64 = 0x001;
     const ERR_BINDED:u64 = 0x002;
@@ -35,37 +34,11 @@ module shui_module::shui {
     const ERR_BALANCE_NOT_ENOUGH:u64 = 0x007;
     const ERR_ALREADY_BIND:u64 = 0x008;
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x009;
-
-    const CO_FOUNDER_PER_RESERVE:u64 = 3_000_000;
-    const FOUNDER_PER_RESERVE:u64 = 4_000_000;
-    const GAME_ENGINE_TEAM_PER_RESERVE:u64 = 1_000_000;
-    const TECH_TEAM_PER_RESERVE:u64 = 500_000;
-    const PROMOTE_TEAM_PER_RESERVE:u64 = 400_000;
-    const PARTNER_PER_RESERVE:u64 = 350_000;
-    const ANGLE_INVEST_PER_RESERVE:u64 = 100_000;
+    const ERR_INVALID_TYPE:u64 = 0x010;
 
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
-
-    const GAME_GAME_SUPPLY:u64 = 1_200_000_000;
-    const AIRDROP_SUPPLY:u64 = 500_000_000;
-    const GOLD_RESERVE_SUPPLY:u64 = 200_000_000;
-    const EXCHANGE_SUPPLY:u64 = 100_000_000;
     const FOUNDATION_SUPPLY:u64 = 50_000_000;
     const DAO_SUPPLY:u64 = 50_000_000;
-
-    const CO_FOUNDER_SWAP_LIMIT:u64 = 6000;
-    const FOUNDER_SWAP_LIMIT:u64 = 8000;
-    const GAME_ENGINE_SWAP_LIMIT:u64 = 2000;
-    const TECH_TEAM_SWAP_LIMIT:u64 = 1000;
-    const PROMOTE_SWAP_LIMIT:u64 = 1000;
-    const PARTER_SWAP_LIMIT:u64 = 1000;
-    const LIMIT_L4:u64 = 40;
-
-    const SWAP_RATIO_L0:u64 = 500;
-    const SWAP_RATIO_L1:u64 = 400;
-    const SWAP_RATIO_L2:u64 = 350;
-    const SWAP_RATIO_L3:u64 = 250;
-    const SWAP_RATIO_L4:u64 = 100;
 
     struct SHUI has drop {}
     struct Global has key {
@@ -82,7 +55,6 @@ module shui_module::shui {
         promote_whitelist: Table<address, u64>,
         partner_whitelist: Table<address, u64>,
         angle_invest_whitelist: Table<address, u64>,
-
         players_count:u64,
     }
 
@@ -149,7 +121,7 @@ module shui_module::shui {
         // start from 20000 if not internal
         if (global.creator != tx_context::sender(ctx)) {
             metaId = metaId + 20_000;
-        }; 
+        };
 
         let charactor = new_empty_charactor(ctx);
         let meta = MetaIdentify {
@@ -184,8 +156,7 @@ module shui_module::shui {
         coin::mint(treasuryCap, amount, ctx)
     }
 
-
-    public entry fun transfer_dao_reserve(global: &mut Global, ctx:&mut TxContext) {
+    public entry fun transfer_dao_reserve(global: &mut Global, type:u64, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let account = @dao_reserve_wallet;
         let airdrop_balance = balance::split(&mut global.balance_SHUI, DAO_SUPPLY);
@@ -193,8 +164,7 @@ module shui_module::shui {
         transfer::public_transfer(shui, account);
     }
 
-
-    public entry fun tech_team_foundation_reserve(global: &mut Global, ctx:&mut TxContext) {
+    public entry fun transfer_foundation_reserve(global: &mut Global, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let account = @foundation_reserve_wallet;
         let airdrop_balance = balance::split(&mut global.balance_SHUI, FOUNDATION_SUPPLY);
@@ -202,83 +172,37 @@ module shui_module::shui {
         transfer::public_transfer(shui, account);
     }
 
-    public entry fun co_founder_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L0;
-        let limit = CO_FOUNDER_SWAP_LIMIT;
+    fun get_table_by_type(global: &mut Global, type:u64) : &mut Table<address, u64> {
+        &mut global.founder_whitelist
+    }
+
+    public entry fun swap<T> (global: &mut Global, rule_info: &RuleInfo, sui_pay_amount:u64, coins:vector<Coin<SUI>>, type:u64, ctx:&mut TxContext) {
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_PUBLIC, ERR_INVALID_TYPE);
+        let ratio = roles::get_ratio_by_type(rule_info, type);
+        let limit = roles::get_swap_num_limit_by_type(rule_info, type);
         let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.co_founder_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.co_founder_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.co_founder_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun founder_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L0;
-        let limit = FOUNDER_SWAP_LIMIT;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.founder_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.founder_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.founder_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun game_engine_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L0;
-        let limit = GAME_ENGINE_SWAP_LIMIT;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.game_engine_team_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.game_engine_team_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.game_engine_team_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun tech_team_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L0;
-        let limit = TECH_TEAM_SWAP_LIMIT;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.tech_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.tech_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.tech_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun promote_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L1;
-        let limit = PROMOTE_SWAP_LIMIT;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.promote_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.promote_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.promote_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun partner_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L2;
-        let limit = PARTER_SWAP_LIMIT;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.partner_whitelist, recepient), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.partner_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.partner_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun angle_invest_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L3;
-        let limit = LIMIT_L4;
-        let recepient = tx_context::sender(ctx);
-        assert!(table::contains(&global.angle_invest_whitelist, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
-        assert!(has_swap_amount(&mut global.angle_invest_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        record_swaped_amount(&mut global.angle_invest_whitelist, sui_pay_amount * ratio, recepient);
-    }
-
-    public entry fun public_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = SWAP_RATIO_L4;
-        let limit = TOTAL_SUPPLY;
-        swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-    }
-
-    public fun swap_internal<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ratio:u64, limit:u64, ctx:&mut TxContext) {
+        let whitelist_table;
+        if (type == TYPE_FOUNDER) {
+            whitelist_table = &mut global.founder_whitelist;
+        } else if (type == TYPE_CO_FOUNDER) {
+            whitelist_table = &mut global.co_founder_whitelist;
+        } else if (type == TYPE_ENGINE_TEAM) {
+            whitelist_table = &mut global.game_engine_team_whitelist;
+        } else if (type == TYPE_TECH_TEAM) {
+            whitelist_table = &mut global.tech_whitelist;
+        } else if (type == TYPE_PROMOTE_TEAM) {
+            whitelist_table = &mut global.promote_whitelist;
+        } else if (type == TYPE_PARTNER) {
+            whitelist_table = &mut global.partner_whitelist;
+        } else if (type == TYPE_ANGLE_INVEST) {
+            whitelist_table = &mut global.angle_invest_whitelist;
+        } else {
+            whitelist_table = &mut global.angle_invest_whitelist;
+        };
+        if (type != TYPE_PUBLIC) {
+            assert!(table::contains(whitelist_table, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
+            assert!(has_swap_amount(whitelist_table, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+        };
         let account = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
@@ -287,22 +211,19 @@ module shui_module::shui {
         let balance = coin::into_balance<SUI>(
             coin::split<SUI>(&mut merged_coin, sui_pay_amount * 1_000_000_000, ctx)
         );
-
         balance::join(&mut global.balance_SUI, balance);
-
-        // transfer remain to account
         if (coin::value(&merged_coin) > 0) {
             transfer::public_transfer(merged_coin, account)
         } else {
             destroy_zero(merged_coin)
         };
-
-        // transfer SHUI to account
         let shui_amount:u64 = sui_pay_amount * ratio;
         let airdrop_balance = balance::split(&mut global.balance_SHUI, shui_amount * 1_000_000);
         let shui = coin::from_balance(airdrop_balance, ctx);
-
         transfer::public_transfer(shui, account);
+        if (type != TYPE_PUBLIC) {
+            record_swaped_amount(whitelist_table, sui_pay_amount * ratio, recepient);
+        };
     }
 
     public entry fun burn<T>(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
@@ -326,93 +247,74 @@ module shui_module::shui {
         object::delete(id);
     }
 
-
     fun destroy_charactor(charactor: Inscription) {
         let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
         object::delete(id);
     }
 
-    public entry fun transferMeta(meta: MetaIdentify, receiver:address) {
+    public fun transferMeta(meta: MetaIdentify, receiver:address) {
         unbindMeta(&mut meta);
         transfer::transfer(meta, receiver);
     }
 
-    fun set_founder_whitelists(global: &mut Global, account: address, ctx: &mut TxContext,) {
+    public fun add_whitelist_by_type(global: &mut Global, ruleInfo:&RuleInfo, account: address, type:u64, ctx: &mut TxContext) {
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
+        let reserve = roles::get_per_reserve_by_type(ruleInfo, type);
+        let whitelist_table;
+         if (type == TYPE_FOUNDER) {
+            whitelist_table = &mut global.founder_whitelist;
+        } else if (type == TYPE_CO_FOUNDER) {
+            whitelist_table = &mut global.co_founder_whitelist;
+        } else if (type == TYPE_ENGINE_TEAM) {
+            whitelist_table = &mut global.game_engine_team_whitelist;
+        } else if (type == TYPE_TECH_TEAM) {
+            whitelist_table = &mut global.tech_whitelist;
+        } else if (type == TYPE_PROMOTE_TEAM) {
+            whitelist_table = &mut global.promote_whitelist;
+        } else if (type == TYPE_PARTNER) {
+            whitelist_table = &mut global.partner_whitelist;
+        } else {
+            whitelist_table = &mut global.angle_invest_whitelist;
+        };
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        assert!(table::length(&mut global.founder_whitelist) == 0, 1);
-        table::add(&mut global.founder_whitelist, account, FOUNDER_PER_RESERVE);
+        assert!(table::length(whitelist_table) == 0, 1);
+        table::add(whitelist_table, account, reserve);
     }
 
-    fun set_co_founder_whitelists(global: &mut Global, account: address, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        assert!(table::length(&mut global.co_founder_whitelist) == 0, 1);
-        table::add(&mut global.co_founder_whitelist, account, CO_FOUNDER_PER_RESERVE);
-    }
-
-    public entry fun set_game_engine_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
+    public fun add_whitelists_by_type(global: &mut Global, ruleInfo:&RuleInfo, whitelist: vector<address>, type:u64, ctx: &mut TxContext) {
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
+        let reserve = roles::get_per_reserve_by_type(ruleInfo, type);
+        let whitelist_table;
+         if (type == TYPE_FOUNDER) {
+            whitelist_table = &mut global.founder_whitelist;
+        } else if (type == TYPE_CO_FOUNDER) {
+            whitelist_table = &mut global.co_founder_whitelist;
+        } else if (type == TYPE_ENGINE_TEAM) {
+            whitelist_table = &mut global.game_engine_team_whitelist;
+        } else if (type == TYPE_TECH_TEAM) {
+            whitelist_table = &mut global.tech_whitelist;
+        } else if (type == TYPE_PROMOTE_TEAM) {
+            whitelist_table = &mut global.promote_whitelist;
+        } else if (type == TYPE_PARTNER) {
+            whitelist_table = &mut global.partner_whitelist;
+        } else {
+            whitelist_table = &mut global.angle_invest_whitelist;
+        };
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.game_engine_team_whitelist, account, GAME_ENGINE_TEAM_PER_RESERVE);
+            table::add(whitelist_table, account, reserve);
             i = i + 1
         };
     }
 
-    public entry fun set_tech_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.tech_whitelist, account, TECH_TEAM_PER_RESERVE);
-            i = i + 1
-        };
-    }
-
-    public entry fun set_promote_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.promote_whitelist, account, PROMOTE_TEAM_PER_RESERVE);
-            i = i + 1
-        };
-    }
-
-    public entry fun set_partner_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.partner_whitelist, account, PARTNER_PER_RESERVE);
-            i = i + 1
-        };
-    }
-
-    public entry fun set_angle_invest_swap_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.angle_invest_whitelist, account, ANGLE_INVEST_PER_RESERVE);
-            i = i + 1
-        };
-    }
-
-    fun transfer_reserve(global: &mut Global, amount:u64, ctx: &mut TxContext) {
-        let value = balance::value(&global.balance_SHUI);
-        assert!(value > amount, ERR_BALANCE_NOT_ENOUGH);
-        let reserve_balance = balance::split(&mut global.balance_SHUI, amount);
-        let shui = coin::from_balance(reserve_balance, ctx);
-        transfer::public_transfer(shui, tx_context::sender(ctx));
-    }
-
-    public fun record_swaped_amount(table: &mut Table<address, u64>, amount_culmulate:u64, recepient: address) {
+    fun record_swaped_amount(table: &mut Table<address, u64>, amount_culmulate:u64, recepient: address) {
         let value = table::remove(table, recepient);
         table::add(table, recepient, value - amount_culmulate);
     }
 
-    public fun has_swap_amount(table: &mut Table<address, u64>, amount_to_swap:u64, recepient: address): bool {
+    fun has_swap_amount(table: &Table<address, u64>, amount_to_swap:u64, recepient: address): bool {
        let left_amount = *table::borrow(table, recepient);
        left_amount >= amount_to_swap
     }
