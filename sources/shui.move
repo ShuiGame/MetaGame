@@ -38,10 +38,11 @@ module shui_module::shui {
 
     const CO_FOUNDER_PER_RESERVE:u64 = 3_000_000;
     const FOUNDER_PER_RESERVE:u64 = 4_000_000;
-    const ENGINE_TEAM_PER_RESERVE:u64 = 5_000_000;
+    const GAME_ENGINE_TEAM_PER_RESERVE:u64 = 1_000_000;
     const TECH_TEAM_PER_RESERVE:u64 = 500_000;
     const PROMOTE_TEAM_PER_RESERVE:u64 = 400_000;
     const PARTNER_PER_RESERVE:u64 = 350_000;
+    const ANGLE_INVEST_PER_RESERVE:u64 = 100_000;
 
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
 
@@ -74,8 +75,8 @@ module shui_module::shui {
         balance_SHUI: Balance<SHUI>,
         creator: address,
 
-        founder: address,
-        co_founder: address,
+        founder_whitelist: Table<address, u64>,
+        co_founder_whitelist: Table<address, u64>,
         game_engine_team_whitelist: Table<address, u64>,
         tech_whitelist: Table<address, u64>,
         promote_whitelist: Table<address, u64>,
@@ -91,13 +92,10 @@ module shui_module::shui {
         metaId:u64,
         name:string::String,
         phone:string::String,
-        // necessary to bind email/phone
         bind_status: bool,
-
         bind_charactor: address,
     }
 
-    // conflict 
     struct Inscription has key {
         id:UID,
         name: string::String,
@@ -124,8 +122,8 @@ module shui_module::shui {
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
 
-            founder: @founder,
-            co_founder: @co_founder,
+            founder_whitelist: table::new<address, u64>(ctx),
+            co_founder_whitelist: table::new<address, u64>(ctx),
             game_engine_team_whitelist: table::new<address, u64>(ctx),
             tech_whitelist: table::new<address, u64>(ctx),
             promote_whitelist:  table::new<address, u64>(ctx),
@@ -146,7 +144,7 @@ module shui_module::shui {
     public entry fun createMetaIdentify(global: &mut Global, name:string::String, ctx: &mut TxContext) {
         // todo: exist judgement
         global.players_count = global.players_count + 1;
-        let metaId = 0;
+        let metaId = global.players_count;
 
         // start from 20000 if not internal
         if (global.creator != tx_context::sender(ctx)) {
@@ -186,7 +184,7 @@ module shui_module::shui {
         coin::mint(treasuryCap, amount, ctx)
     }
 
-    // reserve shui for dao
+
     public entry fun transfer_dao_reserve(global: &mut Global, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let account = @dao_reserve_wallet;
@@ -195,7 +193,7 @@ module shui_module::shui {
         transfer::public_transfer(shui, account);
     }
 
-    // reserve shui for foundation
+
     public entry fun tech_team_foundation_reserve(global: &mut Global, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let account = @foundation_reserve_wallet;
@@ -208,20 +206,20 @@ module shui_module::shui {
         let ratio = SWAP_RATIO_L0;
         let limit = CO_FOUNDER_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);
-        assert!(global.co_founder == recepient, ERR_NO_PERMISSION);
-        // assert!(has_swap_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+        assert!(table::contains(&global.co_founder_whitelist, recepient), ERR_NOT_IN_WHITELIST);
+        assert!(has_swap_amount(&mut global.co_founder_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
         swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        // record_swaped_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient);
+        record_swaped_amount(&mut global.co_founder_whitelist, sui_pay_amount * ratio, recepient);
     }
 
     public entry fun founder_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let ratio = SWAP_RATIO_L0;
         let limit = FOUNDER_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);
-        assert!(global.founder == recepient, ERR_NO_PERMISSION);
-        // assert!(has_swap_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+        assert!(table::contains(&global.founder_whitelist, recepient), ERR_NOT_IN_WHITELIST);
+        assert!(has_swap_amount(&mut global.founder_whitelist, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
         swap_internal<T>(global, sui_pay_amount, coins, ratio, limit, ctx);
-        // record_swaped_amount(&mut global.ido_whitelist, sui_pay_amount * ratio, recepient);
+        record_swaped_amount(&mut global.founder_whitelist, sui_pay_amount * ratio, recepient);
     }
 
     public entry fun game_engine_swap<T> (global: &mut Global, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
@@ -339,12 +337,24 @@ module shui_module::shui {
         transfer::transfer(meta, receiver);
     }
 
+    fun set_founder_whitelists(global: &mut Global, account: address, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        assert!(table::length(&mut global.founder_whitelist) == 0, 1);
+        table::add(&mut global.founder_whitelist, account, FOUNDER_PER_RESERVE);
+    }
+
+    fun set_co_founder_whitelists(global: &mut Global, account: address, ctx: &mut TxContext,) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        assert!(table::length(&mut global.co_founder_whitelist) == 0, 1);
+        table::add(&mut global.co_founder_whitelist, account, CO_FOUNDER_PER_RESERVE);
+    }
+
     public entry fun set_game_engine_whitelists(global: &mut Global, whitelist: vector<address>, ctx: &mut TxContext,) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.game_engine_team_whitelist, account, 100_000);
+            table::add(&mut global.game_engine_team_whitelist, account, GAME_ENGINE_TEAM_PER_RESERVE);
             i = i + 1
         };
     }
@@ -354,7 +364,7 @@ module shui_module::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.tech_whitelist, account, 100_000);
+            table::add(&mut global.tech_whitelist, account, TECH_TEAM_PER_RESERVE);
             i = i + 1
         };
     }
@@ -364,7 +374,7 @@ module shui_module::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.promote_whitelist, account, 100_000);
+            table::add(&mut global.promote_whitelist, account, PROMOTE_TEAM_PER_RESERVE);
             i = i + 1
         };
     }
@@ -374,7 +384,7 @@ module shui_module::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.partner_whitelist, account, 100_000);
+            table::add(&mut global.partner_whitelist, account, PARTNER_PER_RESERVE);
             i = i + 1
         };
     }
@@ -384,19 +394,9 @@ module shui_module::shui {
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
-            table::add(&mut global.angle_invest_whitelist, account, 10_000);
+            table::add(&mut global.angle_invest_whitelist, account, ANGLE_INVEST_PER_RESERVE);
             i = i + 1
         };
-    }
-
-    public entry fun change_founder(global: &mut Global, founder:address, ctx: &mut TxContext) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        global.founder = founder;
-    }
-
-    public entry fun change_co_founder(global: &mut Global, co_founder:address, ctx: &mut TxContext) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        global.co_founder = co_founder;
     }
 
     fun transfer_reserve(global: &mut Global, amount:u64, ctx: &mut TxContext) {
