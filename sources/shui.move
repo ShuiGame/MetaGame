@@ -287,7 +287,7 @@ module shui_module::shui {
         assert!(coin::value(&merged_coin) >= 1, ERR_SWAP_MIN_ONE_SUI);
         assert!(sui_pay_amount <= limit, ERR_SWAP_MIN_ONE_SUI);
         let balance = coin::into_balance<SUI>(
-            coin::split<SUI>(&mut merged_coin, sui_pay_amount, ctx)
+            coin::split<SUI>(&mut merged_coin, sui_pay_amount * 1_000_000_000, ctx)
         );
 
         balance::join(&mut global.balance_SUI, balance);
@@ -301,7 +301,7 @@ module shui_module::shui {
 
         // transfer SHUI to account
         let shui_amount:u64 = sui_pay_amount * ratio;
-        let airdrop_balance = balance::split(&mut global.balance_SHUI, shui_amount);
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, shui_amount * 1_000_000);
         let shui = coin::from_balance(airdrop_balance, ctx);
 
         transfer::public_transfer(shui, account);
