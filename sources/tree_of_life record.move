@@ -8,7 +8,7 @@ module shui_module::tree_of_life_record {
     const ADDRESS_ALREADY_RECORDED:u64 = 1;
     const ERR_NO_PERMISSION:u64 = 2;
 
-    struct Global has key {
+    struct GlobalRecords has key {
         id: UID,
         creator: address,
         shui_token_pre_white_list: Table<address, vector<address>>,
@@ -18,7 +18,7 @@ module shui_module::tree_of_life_record {
     }
 
     fun init(ctx:&mut TxContext) {
-        let global = Global {
+        let global = GlobalRecords {
             id:object::new(ctx),
             creator:tx_context::sender(ctx),
             shui_token_pre_white_list: table::new<address, vector<address>>(ctx),
@@ -29,7 +29,7 @@ module shui_module::tree_of_life_record {
         transfer::share_object(global); 
     }
 
-    public entry fun record_shui_token(global: &mut Global, recommendAddr: address, ctx:&mut TxContext) {
+    public fun record_shui_token(global: &mut GlobalRecords, recommendAddr: address, ctx:&mut TxContext) {
         if (!table::contains(&global.shui_token_pre_white_list, recommendAddr)) {
             let vec = vector<address>[];
             vector::push_back(&mut vec, tx_context::sender(ctx));
@@ -41,7 +41,7 @@ module shui_module::tree_of_life_record {
         }
     }
 
-    public entry fun record_meta_game_nft(global: &mut Global, recommendAddr: address, ctx:&mut TxContext) {
+    public fun record_meta_game_nft(global: &mut GlobalRecords, recommendAddr: address, ctx:&mut TxContext) {
         if (!table::contains(&global.meta_game_pre_white_list, recommendAddr)) {
             let vec = vector<address>[];
             vector::push_back(&mut vec, tx_context::sender(ctx));
@@ -54,7 +54,7 @@ module shui_module::tree_of_life_record {
     }
 
     // will be set after data snapshot check by contract owner
-    public entry fun set_valid_meta_game_white_list(global: &mut Global, white_list: vector<address>, ctx:&mut TxContext) {
+    public fun set_valid_meta_game_white_list(global: &mut GlobalRecords, white_list: vector<address>, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&white_list));
         while (i < len) {
@@ -65,7 +65,7 @@ module shui_module::tree_of_life_record {
     }
 
     // will be set after data snapshot check by contract owner
-    public entry fun set_valid_shui_token_white_list(global: &mut Global, white_list: vector<address>, ctx:&mut TxContext) {
+    public fun set_valid_shui_token_white_list(global: &mut GlobalRecords, white_list: vector<address>, ctx:&mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&white_list));
         while (i < len) {
@@ -75,19 +75,19 @@ module shui_module::tree_of_life_record {
         }
     }
 
-    public fun get_shui_token_pre_white_list(global: &mut Global, recommendAddr:address): &vector<address> {
-        table::borrow_mut(&mut global.shui_token_pre_white_list, recommendAddr)
+    public entry fun get_shui_token_pre_white_list(global: &mut GlobalRecords, recommendAddr:address): vector<address> {
+        *table::borrow(&mut global.shui_token_pre_white_list, recommendAddr)
     }
 
-    public fun get_meta_game_pre_white_list(global: &mut Global, recommendAddr:address): &vector<address> {
-        table::borrow_mut(&mut global.meta_game_pre_white_list, recommendAddr)
+    public entry fun get_meta_game_pre_white_list(global: &mut GlobalRecords, recommendAddr:address): vector<address> {
+        *table::borrow(&mut global.meta_game_pre_white_list, recommendAddr)
     }
 
-    public fun get_shui_token_white_list(global: &Global): &vector<address> {
-        &global.valid_shui_token_whitelist
+    public entry fun get_shui_token_white_list(global: &GlobalRecords): vector<address> {
+        *&global.valid_shui_token_whitelist
     }
 
-    public fun get_meta_game_white_list(global: &Global): &vector<address> {
-        &global.valid_meta_game_whitelist
+    public entry fun get_meta_game_white_list(global: &GlobalRecords): vector<address> {
+        *&global.valid_meta_game_whitelist
     }
 }
