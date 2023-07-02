@@ -2,7 +2,7 @@ module shui_module::roles {
     use std::vector;
     use sui::transfer;
     use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::{TxContext};
     struct RuleInfo has key {
         id: UID,
         swap_per_reserve: vector<u64>,

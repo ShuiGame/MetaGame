@@ -41,6 +41,8 @@ module shui_module::shui {
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
     const FOUNDATION_RESERVE:u64 = 50_000_000;
     const DAO_RESERVE:u64 = 50_000_000;
+    const GAME_RESERVE:u64 = 1_200_000_000;
+    const EXCHANGE_RESERVE:u64 = 100_000_000;
 
     struct SHUI has drop {}
     struct Global has key {
@@ -120,6 +122,8 @@ module shui_module::shui {
         // transfer ther reserve shui to dao and foundation account;
         transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE, ctx);
         transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE, ctx);
+        transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE, ctx);
+        transfer_to_reserve(&mut global, @exchange_reserve_wallet, EXCHANGE_RESERVE, ctx);
         // transfer_airdrop_reserve(&mut global, @airdrop_reserve_contract, ctx);
         transfer::share_object(global);
     }
@@ -176,7 +180,7 @@ module shui_module::shui {
     }
 
     public(friend) fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
-        let airdrop_balance = balance::split(&mut global.balance_SHUI, 10);
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
         transfer::public_transfer(shui, tx_context::sender(ctx));
     }
@@ -187,11 +191,6 @@ module shui_module::shui {
 
     public(friend) fun change_meta_airdrop_time(meta: &mut MetaIdentify, time:u64) {
         meta.airdop_claim_time = time;
-    }
-
-
-    fun get_table_by_type(global: &mut Global, type:u64) : &mut Table<address, u64> {
-        &mut global.founder_whitelist
     }
 
     public entry fun swap<T> (global: &mut Global, rule_info: &RuleInfo, sui_pay_amount:u64, coins:vector<Coin<SUI>>, type:u64, ctx:&mut TxContext) {

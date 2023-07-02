@@ -3,7 +3,7 @@ module shui_module::airdrop {
     use sui::transfer;
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
-    use shui_module::shui::{Self, MetaIdentify};
+    use shui_module::shui::{Self};
     use sui::clock::{Self, Clock};
     use sui::table::{Self};
 
@@ -23,6 +23,8 @@ module shui_module::airdrop {
         start: u64,
         creator: address,
         reserve_whitelist: table::Table<address, u64>,
+        // address -> last claim time
+        claim_records_list: table::Table<address, u64>
     }
 
     struct TimeCap has key {
@@ -35,7 +37,8 @@ module shui_module::airdrop {
             current_phase: 1,
             start: 0,
             creator: tx_context::sender(ctx),
-            reserve_whitelist: table::new<address, u64>(ctx)
+            reserve_whitelist: table::new<address, u64>(ctx),
+            claim_records_list: table::new<address, u64>(ctx),
         };
         transfer::share_object(global);
         let time_cap = TimeCap {
@@ -60,13 +63,19 @@ module shui_module::airdrop {
         phase
     }
 
-    public entry fun claim_airdrop(info:&AirdropGlobal, global: &mut shui::Global, meta: &mut shui::MetaIdentify, clock:&Clock, ctx: &mut TxContext) {
+    fun record_claim_time(table: &mut table::Table<address, u64>, time:u64, recepient: address) {
+        let _ = table::remove(table, recepient);
+        table::add(table, recepient, time);
+    }
+
+    public entry fun claim_airdrop(info:&mut AirdropGlobal, global: &mut shui::Global, clock:&Clock, ctx: &mut TxContext) {
         let now = clock::timestamp_ms(clock);
-        let diff = now - shui::get_meta_airdrop_claim_time(meta);
-        assert!(diff > DAY_IN_MS, ERR_HAS_CLAIMED_IN_24HOUR);
+        let user = tx_context::sender(ctx);
+        let last_claim_time = *table::borrow(&info.claim_records_list, user);
+        assert!((now - last_claim_time) > DAY_IN_MS, ERR_HAS_CLAIMED_IN_24HOUR);
         let amount = get_amount_by_time(info, clock);
         shui::airdrop_claim(global, amount, ctx);
-        shui::change_meta_airdrop_time(meta, now);
+        record_claim_time(&mut info.claim_records_list, now, user)
     }
 
     public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, global: &mut shui::Global,ctx: &mut TxContext) {
