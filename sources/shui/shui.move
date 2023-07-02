@@ -15,6 +15,7 @@ module shui_module::shui {
     use shui_module::avatar::{Self};
     use sui::table::{Self, Table};
     use shui_module::roles::{Self, RuleInfo};
+    friend shui_module::airdrop;
 
     const TYPE_FOUNDER:u64 = 0;
     const TYPE_CO_FOUNDER:u64 = 1;
@@ -35,10 +36,11 @@ module shui_module::shui {
     const ERR_ALREADY_BIND:u64 = 0x008;
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x009;
     const ERR_INVALID_TYPE:u64 = 0x010;
+    const ERR_META_HAS_CREATED:u64 = 0x011;
 
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
-    const FOUNDATION_SUPPLY:u64 = 50_000_000;
-    const DAO_SUPPLY:u64 = 50_000_000;
+    const FOUNDATION_RESERVE:u64 = 50_000_000;
+    const DAO_RESERVE:u64 = 50_000_000;
 
     struct SHUI has drop {}
     struct Global has key {
@@ -56,6 +58,8 @@ module shui_module::shui {
         partner_whitelist: Table<address, u64>,
         angle_invest_whitelist: Table<address, u64>,
         players_count:u64,
+
+        metauser_list: Table<address, u64>,
     }
 
     struct MetaIdentify has key {
@@ -66,6 +70,7 @@ module shui_module::shui {
         phone:string::String,
         bind_status: bool,
         bind_charactor: address,
+        airdop_claim_time: u64,
     }
 
     struct Inscription has key {
@@ -103,6 +108,7 @@ module shui_module::shui {
             angle_invest_whitelist: table::new<address, u64>(ctx),
 
             players_count:0,
+            metauser_list: table::new<address, u64>(ctx),
         };
         let total_shui = mint(&mut adminCap, TOTAL_SUPPLY, ctx);
         transfer::public_transfer(adminCap, tx_context::sender(ctx));
@@ -110,11 +116,16 @@ module shui_module::shui {
             total_shui
         );
         balance::join(&mut global.balance_SHUI, balance);
+
+        // transfer ther reserve shui to dao and foundation account;
+        transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE, ctx);
+        transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE, ctx);
+        // transfer_airdrop_reserve(&mut global, @airdrop_reserve_contract, ctx);
         transfer::share_object(global);
     }
 
     public entry fun createMetaIdentify(global: &mut Global, name:string::String, ctx: &mut TxContext) {
-        // todo: exist judgement
+        assert!(!table::contains(&global.metauser_list, tx_context::sender(ctx)), ERR_META_HAS_CREATED);
         global.players_count = global.players_count + 1;
         let metaId = global.players_count;
 
@@ -131,9 +142,11 @@ module shui_module::shui {
             bind_charactor: object::uid_to_address(&charactor.id),
             bind_status: false,
             phone:string::utf8(b""),
+            airdop_claim_time: 0,
         };
         transfer::transfer(charactor, tx_context::sender(ctx));
         transfer::transfer(meta, tx_context::sender(ctx));
+        table::add(&mut global.metauser_list, tx_context::sender(ctx), 0);
     }
 
     fun new_empty_charactor(ctx: &mut TxContext):Inscription {
@@ -156,21 +169,26 @@ module shui_module::shui {
         coin::mint(treasuryCap, amount, ctx)
     }
 
-    public entry fun transfer_dao_reserve(global: &mut Global, type:u64, ctx:&mut TxContext) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let account = @dao_reserve_wallet;
-        let airdrop_balance = balance::split(&mut global.balance_SHUI, DAO_SUPPLY);
+    fun transfer_to_reserve(global: &mut Global, recepient:address, amount:u64, ctx:&mut TxContext) {
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
-        transfer::public_transfer(shui, account);
+        transfer::public_transfer(shui, recepient);
     }
 
-    public entry fun transfer_foundation_reserve(global: &mut Global, ctx:&mut TxContext) {
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let account = @foundation_reserve_wallet;
-        let airdrop_balance = balance::split(&mut global.balance_SHUI, FOUNDATION_SUPPLY);
+    public(friend) fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, 10);
         let shui = coin::from_balance(airdrop_balance, ctx);
-        transfer::public_transfer(shui, account);
+        transfer::public_transfer(shui, tx_context::sender(ctx));
     }
+
+    public(friend) fun get_meta_airdrop_claim_time(meta: &MetaIdentify):u64 {
+        meta.airdop_claim_time
+    }
+
+    public(friend) fun change_meta_airdrop_time(meta: &mut MetaIdentify, time:u64) {
+        meta.airdop_claim_time = time;
+    }
+
 
     fun get_table_by_type(global: &mut Global, type:u64) : &mut Table<address, u64> {
         &mut global.founder_whitelist
@@ -237,13 +255,14 @@ module shui_module::shui {
     }
 
     public entry fun unbindMeta(meta:&mut MetaIdentify) {
+        // todo:think about the airdrop bind time bug when unbind....
         assert!(meta.bind_status == true, ERR_UNBINDED);
         meta.phone = string::utf8(b"");
         meta.bind_status = false;
     }
 
     public entry fun deleteMeta(meta: MetaIdentify) {
-        let MetaIdentify {id, metaId:_, name:_, phone:_, bind_status:_, bind_charactor:_} = meta;
+        let MetaIdentify {id, metaId:_, name:_, phone:_, bind_status:_, bind_charactor:_, airdop_claim_time:_} = meta;
         object::delete(id);
     }
 
