@@ -9,11 +9,14 @@ module shui_module::shui {
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::pay;
+    use sui::display;
+    use sui::package;
+    use sui::url;
+    use sui::table::{Self, Table};
     use shui_module::race::{Self};
     use shui_module::level::{Self};
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
-    use sui::table::{Self, Table};
     use shui_module::roles::{Self, RuleInfo};
     friend shui_module::airdrop;
 
@@ -26,6 +29,7 @@ module shui_module::shui {
     const TYPE_ANGLE_INVEST:u64 = 6;
     const TYPE_PUBLIC:u64 = 7;
     const TYPE_META_VIP:u64 = 8;
+    const SHUI_ICON_URL:vector<u8> = b"https://nftstorage.link/ipfs/bafybeieqqos2upvmmxzmauv6cf53ddegpjc5zkrvbpriz7iajamcxikv4y";
 
     const ERR_CHARACTOR_CREATED:u64 = 0x001;
     const ERR_BINDED:u64 = 0x002;
@@ -44,6 +48,7 @@ module shui_module::shui {
     const DAO_RESERVE:u64 = 50_000_000;
     const GAME_RESERVE:u64 = 1_200_000_000;
     const EXCHANGE_RESERVE:u64 = 100_000_000;
+    const AMOUNT_DECIMAL:u64 = 1_000_000;
 
     struct SHUI has drop {}
     struct Global has key {
@@ -90,10 +95,10 @@ module shui_module::shui {
     fun init(witness: SHUI, ctx: &mut TxContext) {
         let (adminCap, metadata) = coin::create_currency(witness, 
             6,
-            b"shui",
-            b"shui",
-            b"desc",
-            option::none(), 
+            b"SHUI",
+            b"SHUI",
+            b"SHUI token",
+            option::some(url::new_unsafe_from_bytes(SHUI_ICON_URL)),
             ctx);
         transfer::public_freeze_object(metadata);
         let global = Global {
@@ -115,7 +120,7 @@ module shui_module::shui {
             players_count:0,
             metauser_list: table::new<address, u64>(ctx),
         };
-        let total_shui = mint(&mut adminCap, TOTAL_SUPPLY, ctx);
+        let total_shui = mint(&mut adminCap, TOTAL_SUPPLY * AMOUNT_DECIMAL, ctx);
         transfer::public_transfer(adminCap, tx_context::sender(ctx));
         let balance = coin::into_balance<SHUI>(
             total_shui
@@ -123,10 +128,10 @@ module shui_module::shui {
         balance::join(&mut global.balance_SHUI, balance);
 
         // transfer ther reserve shui to dao and foundation account;
-        transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE, ctx);
-        transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE, ctx);
-        transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE, ctx);
-        transfer_to_reserve(&mut global, @exchange_reserve_wallet, EXCHANGE_RESERVE, ctx);
+        transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE * AMOUNT_DECIMAL, ctx);
+        transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE * AMOUNT_DECIMAL, ctx);
+        transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE * AMOUNT_DECIMAL, ctx);
+        transfer_to_reserve(&mut global, @exchange_reserve_wallet, EXCHANGE_RESERVE * AMOUNT_DECIMAL, ctx);
         // transfer_airdrop_reserve(&mut global, @airdrop_reserve_contract, ctx);
         transfer::share_object(global);
     }
@@ -200,7 +205,7 @@ module shui_module::shui {
     }
 
     public entry fun swap<T> (global: &mut Global, rule_info: &RuleInfo, sui_pay_amount:u64, coins:vector<Coin<SUI>>, type:u64, ctx:&mut TxContext) {
-        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_META_VIP, ERR_INVALID_TYPE);
         let ratio = roles::get_ratio_by_type(rule_info, type);
         let limit = roles::get_swap_num_limit_by_type(rule_info, type);
         let recepient = tx_context::sender(ctx);

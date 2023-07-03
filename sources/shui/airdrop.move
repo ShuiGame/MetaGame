@@ -17,6 +17,7 @@ module shui_module::airdrop {
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
     const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
+    const AMOUNT_DECIMAL:u64 = 1_000_000;
 
     struct AirdropGlobal has key {
         id: UID,
@@ -51,7 +52,7 @@ module shui_module::airdrop {
     public entry fun get_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
         let phase = get_phase_by_time(global, clock);
         assert!(phase >= 1 && phase <= 5, ERR_INVALID_PHASE);
-        (60 - phase * 10) * 1_000_000
+        (60 - phase * 10) * AMOUNT_DECIMAL
     }
 
     fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock):u64 {
@@ -92,7 +93,7 @@ module shui_module::airdrop {
     public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, global: &mut shui::Global, ctx: &mut TxContext) {
         let account = tx_context::sender(ctx);
         assert!(table::contains(&info.reserve_whitelist, account), ERR_NOT_IN_WHITELIST);
-        shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT * 1_000_000, ctx);
+        shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT * AMOUNT_DECIMAL, ctx);
         table::remove(&mut info.reserve_whitelist, account);
     }
 
