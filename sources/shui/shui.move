@@ -136,7 +136,7 @@ module shui_module::shui {
         global.players_count = global.players_count + 1;
         let metaId = global.players_count;
 
-        // 0-9999 for sale
+        // todo: 0-9999 for sale
 
         // 10000 - 20000 for meta_id_vip
         metaId = metaId + 10_000;
@@ -185,7 +185,7 @@ module shui_module::shui {
         transfer::public_transfer(shui, recepient);
     }
 
-    public(friend) fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
+    public entry fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
         let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
         transfer::public_transfer(shui, tx_context::sender(ctx));
@@ -239,8 +239,8 @@ module shui_module::shui {
             destroy_zero(merged_coin)
         };
         let shui_amount:u64 = sui_pay_amount * ratio;
-        let airdrop_balance = balance::split(&mut global.balance_SHUI, shui_amount * 1_000_000);
-        let shui = coin::from_balance(airdrop_balance, ctx);
+        let shui_balance = balance::split(&mut global.balance_SHUI, shui_amount * 1_000_000);
+        let shui = coin::from_balance(shui_balance, ctx);
         transfer::public_transfer(shui, account);
         if (type != TYPE_PUBLIC) {
             record_swaped_amount(whitelist_table, sui_pay_amount * ratio, recepient);

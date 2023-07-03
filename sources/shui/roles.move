@@ -21,7 +21,7 @@ module shui_module::roles {
     }
 
     fun init_reserve_vec(): vector<u64> {
-        // order: [founder, cofounder, game_engine, tech_team, promote_team, partner, angle_inves, gold_reserve]
+        // order: [founder, cofounder, game_engine, tech_team, promote_team, partner, angle_inves, gold_reserve, meta_id]
         let vec = vector::empty<u64>();
         vector::push_back(&mut vec, 4_000_000);
         vector::push_back(&mut vec, 3_000_000);
@@ -30,7 +30,8 @@ module shui_module::roles {
         vector::push_back(&mut vec, 400_000);
         vector::push_back(&mut vec, 350_000);
         vector::push_back(&mut vec, 100_000);
-        vector::push_back(&mut vec, 1_000_000_000);   
+        vector::push_back(&mut vec, 1_000_000_000);
+        vector::push_back(&mut vec, 0);
         vec
     }
 
@@ -49,7 +50,7 @@ module shui_module::roles {
     }
 
     fun init_swap_num_limit(): vector<u64> {
-        // order: [founder, cofounder, game_engine, tech_team, promote_team, partner, angle_inves, gold_reserve]
+        // order: [founder, cofounder, game_engine, tech_team, promote_team, partner, angle_inves, gold_reserve,]
         let vec = vector::empty<u64>();
         vector::push_back(&mut vec, 8000);
         vector::push_back(&mut vec, 6000);

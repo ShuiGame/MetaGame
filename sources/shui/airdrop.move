@@ -11,6 +11,7 @@ module shui_module::airdrop {
     const ERR_NO_PERMISSION:u64 = 0x002;
     const ERR_NOT_IN_WHITELIST:u64 = 0x003;
     const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
+    const ERR_AIRDROP_NOT_START:u64 = 0x005;
 
 
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
@@ -47,10 +48,10 @@ module shui_module::airdrop {
         transfer::transfer(time_cap, tx_context::sender(ctx));
     }
 
-    fun get_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
+    public entry fun get_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
         let phase = get_phase_by_time(global, clock);
         assert!(phase >= 1 && phase <= 5, ERR_INVALID_PHASE);
-        60 - phase * 10
+        (60 - phase * 10) * 1_000_000
     }
 
     fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock):u64 {
@@ -64,24 +65,34 @@ module shui_module::airdrop {
     }
 
     fun record_claim_time(table: &mut table::Table<address, u64>, time:u64, recepient: address) {
-        let _ = table::remove(table, recepient);
+        if (table::contains(table, recepient)) {
+            let _ = table::remove(table, recepient);
+        };
         table::add(table, recepient, time);
     }
 
     public entry fun claim_airdrop(info:&mut AirdropGlobal, global: &mut shui::Global, clock:&Clock, ctx: &mut TxContext) {
+        assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
-        let last_claim_time = *table::borrow(&info.claim_records_list, user);
+        let last_claim_time = 0;
+        if (table::contains(&info.claim_records_list, user)) {
+            last_claim_time = *table::borrow(&info.claim_records_list, user);
+        };
         assert!((now - last_claim_time) > DAY_IN_MS, ERR_HAS_CLAIMED_IN_24HOUR);
         let amount = get_amount_by_time(info, clock);
         shui::airdrop_claim(global, amount, ctx);
         record_claim_time(&mut info.claim_records_list, now, user)
     }
 
-    public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, global: &mut shui::Global,ctx: &mut TxContext) {
+    public entry fun get_now(clock:&Clock, ctx: &mut TxContext):u64 {
+        clock::timestamp_ms(clock)
+    }
+
+    public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, global: &mut shui::Global, ctx: &mut TxContext) {
         let account = tx_context::sender(ctx);
         assert!(table::contains(&info.reserve_whitelist, account), ERR_NOT_IN_WHITELIST);
-        shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT, ctx);
+        shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT * 1_000_000, ctx);
         table::remove(&mut info.reserve_whitelist, account);
     }
 
