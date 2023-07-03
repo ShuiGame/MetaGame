@@ -25,6 +25,7 @@ module shui_module::shui {
     const TYPE_PARTNER:u64 = 5;
     const TYPE_ANGLE_INVEST:u64 = 6;
     const TYPE_PUBLIC:u64 = 7;
+    const TYPE_META_VIP:u64 = 8;
 
     const ERR_CHARACTOR_CREATED:u64 = 0x001;
     const ERR_BINDED:u64 = 0x002;
@@ -59,6 +60,7 @@ module shui_module::shui {
         promote_whitelist: Table<address, u64>,
         partner_whitelist: Table<address, u64>,
         angle_invest_whitelist: Table<address, u64>,
+        meta_id_whitelist: Table<address, u64>,
         players_count:u64,
 
         metauser_list: Table<address, u64>,
@@ -108,6 +110,7 @@ module shui_module::shui {
             promote_whitelist:  table::new<address, u64>(ctx),
             partner_whitelist: table::new<address, u64>(ctx),
             angle_invest_whitelist: table::new<address, u64>(ctx),
+            meta_id_whitelist: table::new<address, u64>(ctx),
 
             players_count:0,
             metauser_list: table::new<address, u64>(ctx),
@@ -133,9 +136,12 @@ module shui_module::shui {
         global.players_count = global.players_count + 1;
         let metaId = global.players_count;
 
-        // start from 20000 if not internal
-        if (global.creator != tx_context::sender(ctx)) {
-            metaId = metaId + 20_000;
+        // 0-9999 for sale
+
+        // 10000 - 20000 for meta_id_vip
+        metaId = metaId + 10_000;
+        if (!table::contains(&global.meta_id_whitelist, tx_context::sender(ctx))) {
+            metaId = metaId + 10_000;
         };
 
         let charactor = new_empty_charactor(ctx);
@@ -194,7 +200,7 @@ module shui_module::shui {
     }
 
     public entry fun swap<T> (global: &mut Global, rule_info: &RuleInfo, sui_pay_amount:u64, coins:vector<Coin<SUI>>, type:u64, ctx:&mut TxContext) {
-        assert!(type >= TYPE_FOUNDER && type <= TYPE_PUBLIC, ERR_INVALID_TYPE);
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
         let ratio = roles::get_ratio_by_type(rule_info, type);
         let limit = roles::get_swap_num_limit_by_type(rule_info, type);
         let recepient = tx_context::sender(ctx);
@@ -211,8 +217,6 @@ module shui_module::shui {
             whitelist_table = &mut global.promote_whitelist;
         } else if (type == TYPE_PARTNER) {
             whitelist_table = &mut global.partner_whitelist;
-        } else if (type == TYPE_ANGLE_INVEST) {
-            whitelist_table = &mut global.angle_invest_whitelist;
         } else {
             whitelist_table = &mut global.angle_invest_whitelist;
         };
@@ -276,7 +280,8 @@ module shui_module::shui {
     }
 
     public fun add_whitelist_by_type(global: &mut Global, ruleInfo:&RuleInfo, account: address, type:u64, ctx: &mut TxContext) {
-        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_META_VIP, ERR_INVALID_TYPE);
         let reserve = roles::get_per_reserve_by_type(ruleInfo, type);
         let whitelist_table;
          if (type == TYPE_FOUNDER) {
@@ -291,16 +296,20 @@ module shui_module::shui {
             whitelist_table = &mut global.promote_whitelist;
         } else if (type == TYPE_PARTNER) {
             whitelist_table = &mut global.partner_whitelist;
-        } else {
+        } else if (type == TYPE_ANGLE_INVEST) {
             whitelist_table = &mut global.angle_invest_whitelist;
+        } else if (type == TYPE_META_VIP) {
+            whitelist_table = &mut global.meta_id_whitelist;
+        } else {
+            whitelist_table = &mut global.meta_id_whitelist; // don't reach mannually
         };
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         assert!(table::length(whitelist_table) == 0, 1);
         table::add(whitelist_table, account, reserve);
     }
 
     public fun add_whitelists_by_type(global: &mut Global, ruleInfo:&RuleInfo, whitelist: vector<address>, type:u64, ctx: &mut TxContext) {
-        assert!(type >= TYPE_FOUNDER && type <= TYPE_ANGLE_INVEST, ERR_INVALID_TYPE);
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        assert!(type >= TYPE_FOUNDER && type <= TYPE_META_VIP, ERR_INVALID_TYPE);
         let reserve = roles::get_per_reserve_by_type(ruleInfo, type);
         let whitelist_table;
          if (type == TYPE_FOUNDER) {
@@ -315,10 +324,11 @@ module shui_module::shui {
             whitelist_table = &mut global.promote_whitelist;
         } else if (type == TYPE_PARTNER) {
             whitelist_table = &mut global.partner_whitelist;
+        } else if (type == TYPE_META_VIP) {
+            whitelist_table = &mut global.meta_id_whitelist;
         } else {
-            whitelist_table = &mut global.angle_invest_whitelist;
+            whitelist_table = &mut global.meta_id_whitelist;  // don't reach mannually
         };
-        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
