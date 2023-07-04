@@ -1,9 +1,9 @@
 module shui_module::airdrop {
-    use std::vector;
     use sui::transfer;
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
     use shui_module::shui::{Self};
+    use shui_module::metaIdentity::{Self, MetaIdentity};
     use sui::clock::{Self, Clock};
     use sui::table::{Self};
 
@@ -12,6 +12,8 @@ module shui_module::airdrop {
     const ERR_NOT_IN_WHITELIST:u64 = 0x003;
     const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
     const ERR_AIRDROP_NOT_START:u64 = 0x005;
+    const ERR_HAS_CLAIMED:u64 = 0x006;
+    const ERR_INACTIVE_META:u64 = 0x007;
 
 
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
@@ -24,9 +26,11 @@ module shui_module::airdrop {
         current_phase: u64,
         start: u64,
         creator: address,
-        reserve_whitelist: table::Table<address, u64>,
+
+        // address -> has claimed the airdrop
+        reserve_claim_records_list: table::Table<address, bool>,
         // address -> last claim time
-        claim_records_list: table::Table<address, u64>
+        daily_claim_records_list: table::Table<address, u64>
     }
 
     struct TimeCap has key {
@@ -39,8 +43,8 @@ module shui_module::airdrop {
             current_phase: 1,
             start: 0,
             creator: tx_context::sender(ctx),
-            reserve_whitelist: table::new<address, u64>(ctx),
-            claim_records_list: table::new<address, u64>(ctx),
+            reserve_claim_records_list: table::new<address, bool>(ctx),
+            daily_claim_records_list: table::new<address, u64>(ctx),
         };
         transfer::share_object(global);
         let time_cap = TimeCap {
@@ -72,50 +76,39 @@ module shui_module::airdrop {
         table::add(table, recepient, time);
     }
 
-    public entry fun claim_airdrop(info:&mut AirdropGlobal, global: &mut shui::Global, clock:&Clock, ctx: &mut TxContext) {
+    public entry fun claim_airdrop(info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, global: &mut shui::Global, clock:&Clock, ctx: &mut TxContext) {
+        // metaId check
+        assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
         let last_claim_time = 0;
-        if (table::contains(&info.claim_records_list, user)) {
-            last_claim_time = *table::borrow(&info.claim_records_list, user);
+        if (table::contains(&info.daily_claim_records_list, user)) {
+            last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
         };
         assert!((now - last_claim_time) > DAY_IN_MS, ERR_HAS_CLAIMED_IN_24HOUR);
         let amount = get_amount_by_time(info, clock);
         shui::airdrop_claim(global, amount, ctx);
-        record_claim_time(&mut info.claim_records_list, now, user)
+        record_claim_time(&mut info.daily_claim_records_list, now, user)
     }
 
-    public entry fun get_now(clock:&Clock, ctx: &mut TxContext):u64 {
+    public entry fun get_now(clock:&Clock):u64 {
         clock::timestamp_ms(clock)
     }
 
-    public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, global: &mut shui::Global, ctx: &mut TxContext) {
+    public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, meta: &MetaIdentity, global: &mut shui::Global, ctx: &mut TxContext) {
+        // todo:change whitelist to meta id check
+        assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
+        assert!(metaIdentity::getMetaId(meta) < 20000, 1);
         let account = tx_context::sender(ctx);
-        assert!(table::contains(&info.reserve_whitelist, account), ERR_NOT_IN_WHITELIST);
+        assert!(!table::contains(&info.reserve_claim_records_list, account), ERR_HAS_CLAIMED);
         shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT * AMOUNT_DECIMAL, ctx);
-        table::remove(&mut info.reserve_whitelist, account);
+        table::add(&mut info.reserve_claim_records_list, account, true);
     }
 
     public entry fun start_timing(info:&mut AirdropGlobal, time_cap: TimeCap, clock_object: &Clock) {
         info.start = clock::timestamp_ms(clock_object);
         let TimeCap { id } = time_cap;
         object::delete(id);
-    }
-
-    public fun set_whitelists(info: &mut AirdropGlobal, whitelist: vector<address>, ctx: &mut TxContext) {
-        assert!(info.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let whitelist_table = &mut info.reserve_whitelist;
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(whitelist_table, account, 0);
-            i = i + 1
-        };
-    }
-
-    public fun add_whitelist(info: &mut AirdropGlobal, account:address, ctx: &mut TxContext) {
-        assert!(info.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        table::add(&mut info.reserve_whitelist, account, 0);
     }
 }

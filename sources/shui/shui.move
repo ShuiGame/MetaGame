@@ -9,8 +9,6 @@ module shui_module::shui {
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::pay;
-    use sui::display;
-    use sui::package;
     use sui::url;
     use sui::table::{Self, Table};
     use shui_module::race::{Self};
@@ -18,7 +16,8 @@ module shui_module::shui {
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
     use shui_module::roles::{Self, RuleInfo};
-    friend shui_module::airdrop;
+
+    friend shui_module::airdrop;    
 
     const TYPE_FOUNDER:u64 = 0;
     const TYPE_CO_FOUNDER:u64 = 1;
@@ -190,18 +189,10 @@ module shui_module::shui {
         transfer::public_transfer(shui, recepient);
     }
 
-    public entry fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
+    public(friend) entry fun airdrop_claim(global: &mut Global, amount:u64, ctx:&mut TxContext) {
         let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
         transfer::public_transfer(shui, tx_context::sender(ctx));
-    }
-
-    public(friend) fun get_meta_airdrop_claim_time(meta: &MetaIdentify):u64 {
-        meta.airdop_claim_time
-    }
-
-    public(friend) fun change_meta_airdrop_time(meta: &mut MetaIdentify, time:u64) {
-        meta.airdop_claim_time = time;
     }
 
     public entry fun swap<T> (global: &mut Global, rule_info: &RuleInfo, sui_pay_amount:u64, coins:vector<Coin<SUI>>, type:u64, ctx:&mut TxContext) {
@@ -254,34 +245,6 @@ module shui_module::shui {
 
     public entry fun burn<T>(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
         coin::burn(treasury, coin);
-    }
-
-    public entry fun bindMeta(meta:&mut MetaIdentify, phone:string::String) {
-        assert!(meta.bind_status == false, ERR_ALREADY_BIND);
-        meta.phone = phone;
-        meta.bind_status = true;
-    }
-
-    public entry fun unbindMeta(meta:&mut MetaIdentify) {
-        // todo:think about the airdrop bind time bug when unbind....
-        assert!(meta.bind_status == true, ERR_UNBINDED);
-        meta.phone = string::utf8(b"");
-        meta.bind_status = false;
-    }
-
-    public entry fun deleteMeta(meta: MetaIdentify) {
-        let MetaIdentify {id, metaId:_, name:_, phone:_, bind_status:_, bind_charactor:_, airdop_claim_time:_} = meta;
-        object::delete(id);
-    }
-
-    fun destroy_charactor(charactor: Inscription) {
-        let Inscription {id, name:_, gender:_, avatar:_ ,race:_ ,level:_,gift:_} = charactor;
-        object::delete(id);
-    }
-
-    public fun transferMeta(meta: MetaIdentify, receiver:address) {
-        unbindMeta(&mut meta);
-        transfer::transfer(meta, receiver);
     }
 
     public fun add_whitelist_by_type(global: &mut Global, ruleInfo:&RuleInfo, account: address, type:u64, ctx: &mut TxContext) {
