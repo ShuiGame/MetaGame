@@ -59,18 +59,18 @@ module shui_module::metaIdentity {
         transfer::share_object(global);
     }
 
-    public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, ctx:&mut TxContext) {
+    public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
         let sender = tx_context::sender(ctx);
         assert!(@meta_manager == sender, ERR_NO_PERMISSION);
         let meta = MetaIdentity {
             id: object::new(ctx),
-            metaId: generateUid(global, sender),
+            metaId: generateUid(global, user_addr),
             name:name,
             phone:phone,
             email: email,
             bind_status: true
         };
-        transfer::transfer(meta, sender);
+        transfer::transfer(meta, user_addr);
     }
 
     fun generateUid(global: &mut MetaInfoGlobal, addr:address):u64 {
