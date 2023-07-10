@@ -26,11 +26,13 @@ module shui_module::metaIdentity {
         name:string::String,
         phone:string::String,
         email:string::String,
-        bind_status: bool
+        bind_status: bool,
     }
 
     struct MetaInfoGlobal has key{
         id:UID,
+        creator: address,
+
         // 0-9999
         meta_alpha_count:u64,
 
@@ -40,36 +42,48 @@ module shui_module::metaIdentity {
         // 20001+
         meta_common_user_count:u64,
 
-        // alpha activity participator
+        // for alpha activity participators
         alpha_whitelist:table::Table<address, u64>,
 
-        // shui token participator
-        beta_whitelist:table::Table<address,u64>
+        // for shui token owners
+        beta_whitelist:table::Table<address,u64>,
+
+        // wallet_addr -> meta_addr
+        meta_addr_map:table::Table<address, address>,
+
+        register_owner:address
     }
 
     fun init(ctx: &mut TxContext) {
         let global = MetaInfoGlobal {
             id: object::new(ctx),
+            creator:@account,
             meta_alpha_count: 0,
             meta_beta_count:0,
             meta_common_user_count:0,
             alpha_whitelist:table::new<address, u64>(ctx),
             beta_whitelist:table::new<address,u64>(ctx),
+            meta_addr_map:table::new<address, address>(ctx),
+            register_owner:@register_owner
         };
         transfer::share_object(global);
     }
 
-    public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, name:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
+    public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
         let sender = tx_context::sender(ctx);
-        assert!(@meta_manager == sender, ERR_NO_PERMISSION);
+        assert!(global.register_owner == sender, ERR_NO_PERMISSION);
+        assert!(!table::contains(&global.meta_addr_map, user_addr), ERR_ALREADY_BIND);
+        let uid = object::new(ctx);
+        let meta_addr = object::uid_to_address(&uid);
         let meta = MetaIdentity {
-            id: object::new(ctx),
+            id: uid,
             metaId: generateUid(global, user_addr),
             name:name,
             phone:phone,
             email: email,
             bind_status: true
         };
+        table::add(&mut global.meta_addr_map, user_addr, meta_addr);
         transfer::transfer(meta, user_addr);
     }
 
@@ -77,16 +91,27 @@ module shui_module::metaIdentity {
         let metaId;
         if (table::contains(&global.alpha_whitelist, addr)) {
             metaId = global.meta_alpha_count;
-            assert!(metaId <= 9999, ERR_ALPHA_QUOTA_EXHAUSTED);
-            global.meta_alpha_count = global.meta_alpha_count + 1;
+            if (metaId >= 10000) {
+                metaId = get_common_metaid(global);
+            } else {
+                global.meta_alpha_count = global.meta_alpha_count + 1;
+            }
         } else if (table::contains(&global.beta_whitelist, addr)) {
             metaId = 10000 + global.meta_beta_count;
-            assert!(metaId <= 20000, ERR_BETA_QUOTA_EXHAUSTED);
-            global.meta_beta_count = global.meta_beta_count + 1;
+            if (metaId > 20000) {
+                metaId = get_common_metaid(global);
+            } else {
+                global.meta_beta_count = global.meta_beta_count + 1;
+            }
         } else {
-            metaId = 20000 + global.meta_common_user_count;
-            global.meta_common_user_count = global.meta_common_user_count + 1;
+            metaId = get_common_metaid(global);
         };
+        metaId
+    }
+
+    fun get_common_metaid(global: &mut MetaInfoGlobal):u64 {
+        let metaId = 20000 + global.meta_common_user_count;
+        global.meta_common_user_count = global.meta_common_user_count + 1;
         metaId
     }
 
@@ -104,7 +129,9 @@ module shui_module::metaIdentity {
         meta.bind_status = false;
     }
 
-    public fun transferMeta(meta: MetaIdentity, receiver:address) {
+    public fun transferMeta(global: &mut MetaInfoGlobal, meta: MetaIdentity, receiver:address, ctx:&mut TxContext) {
+        // todo: convert to kiosk architecture
+        _ = table::remove(&mut global.meta_addr_map, tx_context::sender(ctx));
         unbindMeta(&mut meta);
         transfer::transfer(meta, receiver);
     }
@@ -150,5 +177,19 @@ module shui_module::metaIdentity {
         };
         assert!(table::length(whitelist_table) == 0, 1);
         table::add(whitelist_table, account, 0);
+    }
+
+    public fun query_meta_addr(global: &MetaInfoGlobal, user_addr:address): &address {
+        table::borrow(&global.meta_addr_map, user_addr)
+    }
+
+    public fun query_test_res():u64 { // for test
+        1233
+    }
+
+    public fun change_register_owner(global: &mut MetaInfoGlobal, new_owner:address, ctx: &mut TxContext) {
+        let sender = tx_context::sender(ctx);
+        assert!(sender == global.creator, ERR_NO_PERMISSION);
+        global.register_owner = new_owner;
     }
 }
