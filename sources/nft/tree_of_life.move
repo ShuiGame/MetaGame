@@ -6,7 +6,6 @@ module shui_module::tree_of_life {
     use sui::coin::{Self, Coin, destroy_zero};
     use std::vector::{Self};
     use shui_module::shui::{SHUI};
-    use std::string;
     use sui::hash;
     use sui::balance::{Self, Balance};
     use sui::table::{Self, Table};
@@ -33,7 +32,7 @@ module shui_module::tree_of_life {
     struct WaterElement has key, store {
         id:UID,
         // 0,1,2,3,4
-        typeId: string::String,
+        typeId: u64,
     }
 
     struct Fruit has key, store {
@@ -49,7 +48,7 @@ module shui_module::tree_of_life {
         transfer::public_transfer(tree, tx_context::sender(ctx));
     }
 
-    public entry fun water_down(global: &mut TreeGlobal, amount:u64, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext, ) {
+    public entry fun water_down(global: &mut TreeGlobal, amount:u64, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
         // interval time should be greater than 1 days
         let sender = tx_context::sender(ctx);
         let now = clock::timestamp_ms(clock);
@@ -93,6 +92,18 @@ module shui_module::tree_of_life {
         };
     }
 
+    public entry fun open_fruit(fruit: Fruit, ctx:&mut TxContext) {
+        let Fruit {id} = fruit;
+        object::delete(id);
+        transfer::public_transfer(
+            WaterElement {
+                id:object::new(ctx),
+                typeId: get_random_index(ctx, 5),
+            },
+            tx_context::sender(ctx)
+        );
+    }
+
     fun get_random_exp(amount:u64) :u16 {
         let u:u16 = 2;
         if (amount > 8) {
@@ -101,10 +112,10 @@ module shui_module::tree_of_life {
         u
     }
 
-    // fun get_random_element() :u64 {
-    //     let random = bytes_to_u64(seed(ctx)) % 5;
-    //     random
-    // }
+    fun get_random_index(ctx:&mut TxContext, max:u64) :u64 {
+        let random = bytes_to_u64(seed(ctx)) % max;
+        random
+    }
 
     fun bytes_to_u64(bytes: vector<u8>): u64 {
         let value = 0u64;

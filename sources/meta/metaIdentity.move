@@ -49,7 +49,13 @@ module shui_module::metaIdentity {
         beta_whitelist:table::Table<address,u64>,
 
         // wallet_addr -> meta_addr
-        meta_addr_map:table::Table<address, address>,
+        wallet_meta_map:table::Table<address, address>,
+
+        // phone -> meta_addr
+        phone_meta_map:table::Table<string::String, address>,
+
+        // wallet_addr -> phone
+        wallet_phone_map:table::Table<address, string::String>,
 
         register_owner:address
     }
@@ -63,7 +69,9 @@ module shui_module::metaIdentity {
             meta_common_user_count:0,
             alpha_whitelist:table::new<address, u64>(ctx),
             beta_whitelist:table::new<address,u64>(ctx),
-            meta_addr_map:table::new<address, address>(ctx),
+            wallet_meta_map:table::new<address, address>(ctx),
+            phone_meta_map:table::new<string::String, address>(ctx),
+            wallet_phone_map:table::new<address, string::String>(ctx),
             register_owner:@register_owner
         };
         transfer::share_object(global);
@@ -72,7 +80,7 @@ module shui_module::metaIdentity {
     public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
         let sender = tx_context::sender(ctx);
         assert!(global.register_owner == sender, ERR_NO_PERMISSION);
-        assert!(!table::contains(&global.meta_addr_map, user_addr), ERR_ALREADY_BIND);
+        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ALREADY_BIND);
         let uid = object::new(ctx);
         let meta_addr = object::uid_to_address(&uid);
         let meta = MetaIdentity {
@@ -83,7 +91,9 @@ module shui_module::metaIdentity {
             email: email,
             bind_status: true
         };
-        table::add(&mut global.meta_addr_map, user_addr, meta_addr);
+        table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
+        table::add(&mut global.phone_meta_map, phone, meta_addr);
+        table::add(&mut global.wallet_phone_map, sender, phone);
         transfer::transfer(meta, user_addr);
     }
 
@@ -115,24 +125,28 @@ module shui_module::metaIdentity {
         metaId
     }
 
-    public entry fun bindMeta(meta:&mut MetaIdentity, phone:string::String, email:string::String) {
+    public entry fun bindMeta(global: &mut MetaInfoGlobal, meta:&mut MetaIdentity, phone:string::String, email:string::String, ctx:&mut TxContext) {
         assert!(meta.bind_status == false, ERR_ALREADY_BIND);
         meta.phone = phone;
         meta.email = email;
         meta.bind_status = true;
+        table::add(&mut global.phone_meta_map, meta.phone, object::uid_to_address(&meta.id));
+        table::add(&mut global.wallet_phone_map, tx_context::sender(ctx), phone);
     }
 
-    public entry fun unbindMeta(meta:&mut MetaIdentity) {
+    public entry fun unbindMeta(global: &mut MetaInfoGlobal, meta:&mut MetaIdentity, ctx:&mut TxContext) {
         assert!(meta.bind_status == true, ERR_UNBINDED);
         meta.phone = string::utf8(b"");
         meta.email = string::utf8(b"");
         meta.bind_status = false;
+        _ = table::remove(&mut global.phone_meta_map, meta.phone);
+        _ = table::remove(&mut global.wallet_phone_map, tx_context::sender(ctx));
     }
 
     public fun transferMeta(global: &mut MetaInfoGlobal, meta: MetaIdentity, receiver:address, ctx:&mut TxContext) {
         // todo: convert to kiosk architecture
-        _ = table::remove(&mut global.meta_addr_map, tx_context::sender(ctx));
-        unbindMeta(&mut meta);
+        _ = table::remove(&mut global.wallet_meta_map, tx_context::sender(ctx));
+        unbindMeta(global, &mut meta, ctx);
         transfer::transfer(meta, receiver);
     }
 
@@ -141,11 +155,11 @@ module shui_module::metaIdentity {
         object::delete(id);
     }
 
-    public fun getMetaId(meta: &MetaIdentity):u64 {
+    public fun getMetaId(meta: &MetaIdentity) :u64 {
         meta.metaId
     }
 
-    public fun is_active(meta: &MetaIdentity):bool {
+    public fun is_active(meta: &MetaIdentity) :bool {
         meta.bind_status
     }
 
@@ -179,17 +193,22 @@ module shui_module::metaIdentity {
         table::add(whitelist_table, account, 0);
     }
 
-    public fun query_meta_addr(global: &MetaInfoGlobal, user_addr:address): &address {
-        table::borrow(&global.meta_addr_map, user_addr)
+    public fun query_meta_by_address(global: &MetaInfoGlobal, user_addr:address): &address {
+        table::borrow(&global.wallet_meta_map, user_addr)
     }
 
-    public fun query_test_res():u64 { // for test
-        1233
+    public fun query_meta_by_phone(global: &MetaInfoGlobal, phone:string::String): &address {
+        table::borrow(&global.phone_meta_map, phone)
     }
 
     public fun change_register_owner(global: &mut MetaInfoGlobal, new_owner:address, ctx: &mut TxContext) {
         let sender = tx_context::sender(ctx);
         assert!(sender == global.creator, ERR_NO_PERMISSION);
         global.register_owner = new_owner;
+    }
+
+    public fun check_bind_relationship(global: &MetaInfoGlobal, phone:string::String, wallet_addr:address) : bool {
+        let phone_cache = *table::borrow(&global.wallet_phone_map, wallet_addr);
+        phone_cache == phone
     }
 }
