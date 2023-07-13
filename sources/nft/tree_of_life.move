@@ -14,6 +14,11 @@ module shui_module::tree_of_life {
 
     const DAY_IN_MS: u64 = 86_400_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
+    const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
+    const ERR_WRONG_TYPE:u64 = 0x003;
+
+    // 0-4: fragment   100-200:water element
+    const ITEM_TYPE:u64 = 0;
 
     struct Tree_of_life has key, store {
         id:UID,
@@ -29,13 +34,18 @@ module shui_module::tree_of_life {
         water_down_person_exp_records: Table<address, u64>,
     }
 
-    struct WaterElement has key, store {
+    struct WaterElement has key {
         id:UID,
         // 0,1,2,3,4
-        typeId: u64,
+        type: u64,
     }
 
-    struct Fruit has key, store {
+    struct Fragment has key {
+        id:UID,
+        type:u64
+    }
+
+    struct Fruit has key {
         id:UID,
     }
 
@@ -75,7 +85,7 @@ module shui_module::tree_of_life {
         if (table::contains(&global.water_down_person_exp_records, sender)) {
             let last_exp = *table::borrow(&global.water_down_person_exp_records, sender);
             if (last_exp == 4) {
-                transfer::public_transfer(
+                transfer::transfer(
                     Fruit {
                         id:object::new(ctx)
                     },
@@ -92,24 +102,49 @@ module shui_module::tree_of_life {
         };
     }
 
-    public entry fun open_fruit(fruit: Fruit, ctx:&mut TxContext) {
-        let Fruit {id} = fruit;
-        object::delete(id);
-        transfer::public_transfer(
+    public entry fun combine_fragment(fragments: vector<Fragment>, certain_type:u64, ctx:&mut TxContext) {
+        assert!(vector::length(&fragments) == 10, ERR_WRONG_COMBINE_NUM);
+        let (i, len) = (0u64, vector::length(&fragments));
+        while (i < len) {
+            let Fragment {id, type} = vector::pop_back(&mut fragments);
+            assert!(type == certain_type, ERR_WRONG_TYPE);
+            object::delete(id);
+            i = i + 1;
+        };
+        vector::destroy_empty(fragments);
+        transfer::transfer(
             WaterElement {
-                id:object::new(ctx),
-                typeId: get_random_index(ctx, 5),
-            },
-            tx_context::sender(ctx)
+                id : object::new(ctx),
+                type: certain_type
+            }
+            , tx_context::sender(ctx)
         );
     }
 
-    fun get_random_exp(amount:u64) :u16 {
-        let u:u16 = 2;
-        if (amount > 8) {
-          return u
-        };
-        u
+    public entry fun open_fruit(fruit: Fruit, ctx:&mut TxContext) {
+        let Fruit {id} = fruit;
+        object::delete(id);
+        // randomly provide water_fragment or water_element
+        let p = get_random_num(0, 10000);
+        if (p < 10) {
+            transfer::transfer(
+                WaterElement {
+                    id:object::new(ctx),
+                    type: get_random_index(ctx, 5),
+                },
+            tx_context::sender(ctx));
+        } else {
+            transfer::transfer(
+                WaterElement {
+                    id:object::new(ctx),
+                    type: get_random_index(ctx, 5),
+                },
+            tx_context::sender(ctx));
+        }
+    }
+
+    fun get_random_num(start:u64, _end:u64) : u64 {
+        start + 1
     }
 
     fun get_random_index(ctx:&mut TxContext, max:u64) :u64 {

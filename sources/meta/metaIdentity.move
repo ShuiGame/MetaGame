@@ -15,6 +15,8 @@ module shui_module::metaIdentity {
     const ERR_ALPHA_QUOTA_EXHAUSTED:u64 = 0x009;
     const ERR_BETA_QUOTA_EXHAUSTED:u64 = 0x010;
     const ERR_INVALID_TYPE:u64 = 0x011;
+    const ERR_PHONE_HAS_BEEN_BINDED:u64= 0x012;
+    const ERR_ADDRESS_HAS_BEEN_BINDED:u64= 0x013;
 
     const TYPE_ALPHA:u64 = 0;
     const TYPE_BETA:u64 = 1;
@@ -91,9 +93,14 @@ module shui_module::metaIdentity {
             email: email,
             bind_status: true
         };
+        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
         table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
+
+        assert!(!table::contains(&global.phone_meta_map, phone), ERR_PHONE_HAS_BEEN_BINDED);
         table::add(&mut global.phone_meta_map, phone, meta_addr);
-        table::add(&mut global.wallet_phone_map, sender, phone);
+
+        assert!(!table::contains(&global.wallet_phone_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
+        table::add(&mut global.wallet_phone_map, user_addr, phone);
         transfer::transfer(meta, user_addr);
     }
 
