@@ -1,0 +1,31 @@
+2023-07-02T00:35:17.391205Z  INFO sui::client_commands: devnet
+2023-07-02T00:39:19.228802Z  INFO sui::client_commands: Showing 1 results.
+2023-07-02T00:39:19.229026Z  INFO sui::client_commands: 0xd0188dfed17c51eb50d233f0bee90be65b11bcfd72c54733464e3a6cc69f20ab <=
+2023-07-02T00:45:23.915949Z  INFO sui::client_commands: devnet => https://fullnode.devnet.sui.io:443 (active)
+2023-07-02T00:45:23.916229Z  INFO sui::client_commands: localnet => http://0.0.0.0:9000
+2023-07-02T00:48:07.074109Z  INFO sui::client_commands: devnet => https://fullnode.devnet.sui.io:443 (active)
+2023-07-02T00:48:07.074238Z  INFO sui::client_commands: localnet => http://0.0.0.0:9000
+2023-07-02T00:49:08.052446Z  INFO sui::client_commands: Added new Sui env [testnet] to config.
+2023-07-02T00:49:18.704023Z  INFO sui::client_commands: devnet => https://fullnode.devnet.sui.io:443 (active)
+2023-07-02T00:49:18.704148Z  INFO sui::client_commands: localnet => http://0.0.0.0:9000
+2023-07-02T00:49:18.704231Z  INFO sui::client_commands: testnet => https://fullnode.testnet.sui.io:443
+2023-07-02T00:49:48.784889Z  INFO sui::client_commands: devnet
+2023-07-02T00:50:22.164739Z  INFO sui::client_commands: Active environment switched to [testnet]
+2023-07-02T00:51:56.300086Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T00:52:50.919873Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T00:52:51.233163Z  INFO sui::client_commands:                              Object ID                              |  Gas Value 
+2023-07-02T00:52:51.233561Z  INFO sui::client_commands: ----------------------------------------------------------------------------------
+2023-07-02T00:53:36.182004Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T00:53:36.478153Z  INFO sui::client_commands:                              Object ID                              |  Gas Value 
+2023-07-02T00:53:36.479079Z  INFO sui::client_commands: ----------------------------------------------------------------------------------
+2023-07-02T00:53:49.443409Z  INFO sui::client_commands: 0xd0188dfed17c51eb50d233f0bee90be65b11bcfd72c54733464e3a6cc69f20ab
+2023-07-02T00:53:56.352057Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T00:53:56.664292Z  INFO sui::client_commands:                              Object ID                              |  Gas Value 
+2023-07-02T00:53:56.664640Z  INFO sui::client_commands: ----------------------------------------------------------------------------------
+2023-07-02T00:58:17.963487Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T00:58:18.283174Z  INFO sui::client_commands:                              Object ID                              |  Gas Value 
+2023-07-02T00:58:18.283427Z  INFO sui::client_commands: ----------------------------------------------------------------------------------
+2023-07-02T00:58:18.283653Z  INFO sui::client_commands:  0x0d5e82a79fa3b8e33ff7bd6a4761c6a2b8f2c120a8016320a6a3d516c9fe5426 | 1000000000 
+2023-07-02T00:58:35.439656Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T01:02:55.745041Z  WARN sui_sdk::wallet_context: Client/Server api version mismatch, client api version : 1.5.0, server api version : 1.4.1
+2023-07-02T03:14:09.477073Z  INFO sui::client_commands: Active environment switched to [devnet]
