@@ -11,6 +11,9 @@ module shui_module::tree_of_life {
     use sui::table::{Self, Table};
     use sui::bcs;
     use sui::clock::{Self, Clock};
+    use shui_module::items;
+    use shui_module::metaIdentity::{MetaIdentity, get_items};
+    use std::string;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
@@ -34,20 +37,11 @@ module shui_module::tree_of_life {
         water_down_person_exp_records: Table<address, u64>,
     }
 
-    struct WaterElement has key {
-        id:UID,
-        // 0,1,2,3,4
-        type: u64,
-    }
+    struct WaterElement has store {}
 
-    struct Fragment has key {
-        id:UID,
-        type:u64
-    }
+    struct Fragment has store {}
 
-    struct Fruit has key {
-        id:UID,
-    }
+    struct Fruit has store {}
 
     public entry fun mint(ctx:&mut TxContext) {
         let tree = Tree_of_life {
@@ -58,7 +52,7 @@ module shui_module::tree_of_life {
         transfer::public_transfer(tree, tx_context::sender(ctx));
     }
 
-    public entry fun water_down(global: &mut TreeGlobal, amount:u64, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
+    public entry fun water_down(global: &mut TreeGlobal, meta:&mut MetaIdentity, amount:u64, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
         // interval time should be greater than 1 days
         let sender = tx_context::sender(ctx);
         let now = clock::timestamp_ms(clock);
@@ -85,71 +79,41 @@ module shui_module::tree_of_life {
         if (table::contains(&global.water_down_person_exp_records, sender)) {
             let last_exp = *table::borrow(&global.water_down_person_exp_records, sender);
             if (last_exp == 4) {
-                transfer::transfer(
-                    Fruit {
-                        id:object::new(ctx)
-                    },
-                    tx_context::sender(ctx)
-                );
-                table::remove(&mut global.water_down_person_exp_records, sender);
-                table::add(&mut global.water_down_person_exp_records, sender, 0);
+                items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, sender);
+                *exp = 0;
             } else {
-                table::remove(&mut global.water_down_person_exp_records, sender);
-                table::add(&mut global.water_down_person_exp_records, sender, last_exp + 1);
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, sender);
+                *exp = *exp + 1;
             }
         } else {
             table::add(&mut global.water_down_person_exp_records, sender, 1);
         };
     }
 
-    public entry fun combine_fragment(fragments: vector<Fragment>, certain_type:u64, ctx:&mut TxContext) {
-        assert!(vector::length(&fragments) == 10, ERR_WRONG_COMBINE_NUM);
-        let (i, len) = (0u64, vector::length(&fragments));
+    public entry fun swap_fragment(meta:&mut MetaIdentity) {
+        let items = get_items(meta);
+        let vec:vector<Fragment> = items::extract_items(items, string::utf8(b"fragment"), 10);
+        let (i, len) = (0u64, vector::length(&vec));
         while (i < len) {
-            let Fragment {id, type} = vector::pop_back(&mut fragments);
-            assert!(type == certain_type, ERR_WRONG_TYPE);
-            object::delete(id);
-            i = i + 1;
+            let Fragment{} = vector::pop_back(&mut vec);
         };
-        vector::destroy_empty(fragments);
-        transfer::transfer(
-            WaterElement {
-                id : object::new(ctx),
-                type: certain_type
-            }
-            , tx_context::sender(ctx)
-        );
+        vector::destroy_empty(vec);
+        items::store_item(items, string::utf8(b"water_element"), WaterElement{})
     }
 
-    public entry fun open_fruit(fruit: Fruit, ctx:&mut TxContext) {
-        let Fruit {id} = fruit;
-        object::delete(id);
-        // randomly provide water_fragment or water_element
-        let p = get_random_num(0, 10000);
+    public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) {
+        let Fruit {} = items::extract_item(get_items(meta), string::utf8(b"fruit"));
+        let p = get_random_num(0, 1000, ctx);
         if (p < 10) {
-            transfer::transfer(
-                WaterElement {
-                    id:object::new(ctx),
-                    type: get_random_index(ctx, 5),
-                },
-            tx_context::sender(ctx));
+            items::store_item(get_items(meta), string::utf8(b"water_element"), WaterElement{});
         } else {
-            transfer::transfer(
-                WaterElement {
-                    id:object::new(ctx),
-                    type: get_random_index(ctx, 5),
-                },
-            tx_context::sender(ctx));
+            items::store_item(get_items(meta), string::utf8(b"fragment"), Fragment{});
         }
     }
 
-    fun get_random_num(start:u64, _end:u64) : u64 {
-        start + 1
-    }
-
-    fun get_random_index(ctx:&mut TxContext, max:u64) :u64 {
-        let random = bytes_to_u64(seed(ctx)) % max;
-        random
+    fun get_random_num(min:u64, max:u64, ctx:&mut TxContext) :u64 {
+        (min + bytes_to_u64(seed(ctx))) % max
     }
 
     fun bytes_to_u64(bytes: vector<u8>): u64 {

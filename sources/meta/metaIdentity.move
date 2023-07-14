@@ -7,6 +7,8 @@ module shui_module::metaIdentity {
     use sui::table::{Self};
     use std::vector::{Self};
 
+    use shui_module::items;
+
     friend shui_module::airdrop;
 
     const ERR_NO_PERMISSION:u64 = 0x004;
@@ -29,7 +31,12 @@ module shui_module::metaIdentity {
         phone:string::String,
         email:string::String,
         bind_status: bool,
+        items:items::Items
     }
+    
+    struct Fragment has store {}
+
+    struct Fruit has store {}
 
     struct MetaInfoGlobal has key{
         id:UID,
@@ -91,7 +98,8 @@ module shui_module::metaIdentity {
             name:name,
             phone:phone,
             email: email,
-            bind_status: true
+            bind_status: true,
+            items:items::new(ctx)
         };
         assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
         table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
@@ -158,7 +166,10 @@ module shui_module::metaIdentity {
     }
 
     public entry fun deleteMeta(meta: MetaIdentity) {
-        let MetaIdentity {id, metaId:_, name:_, phone:_, email:_, bind_status:_} = meta;
+        let MetaIdentity {id, metaId:_, name:_, phone:_, email:_, bind_status:_, items} = meta;
+
+        // todo:check bags
+        items::destroy_empty(items);
         object::delete(id);
     }
 
@@ -217,5 +228,9 @@ module shui_module::metaIdentity {
     public fun check_bind_relationship(global: &MetaInfoGlobal, phone:string::String, wallet_addr:address) : bool {
         let phone_cache = *table::borrow(&global.wallet_phone_map, wallet_addr);
         phone_cache == phone
+    }
+
+    public fun get_items(meta: &mut MetaIdentity) : &mut items::Items {
+        &mut meta.items
     }
 }

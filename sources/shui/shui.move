@@ -70,7 +70,7 @@ module shui_module::shui {
         metauser_list: Table<address, u64>,
     }
 
-    struct MetaIdentify has key {
+    struct MetaIdentity has key {
         // preserve 0-20000 for airdrop
         id:UID,
         metaId:u64,
@@ -135,7 +135,7 @@ module shui_module::shui {
         transfer::share_object(global);
     }
 
-    public entry fun createMetaIdentify(global: &mut Global, name:string::String, ctx: &mut TxContext) {
+    public entry fun createMetaIdentity(global: &mut Global, name:string::String, ctx: &mut TxContext) {
         assert!(!table::contains(&global.metauser_list, tx_context::sender(ctx)), ERR_META_HAS_CREATED);
         global.players_count = global.players_count + 1;
         let metaId = global.players_count;
@@ -149,7 +149,7 @@ module shui_module::shui {
         };
 
         let charactor = new_empty_charactor(ctx);
-        let meta = MetaIdentify {
+        let meta = MetaIdentity {
             id:object::new(ctx),
             metaId:metaId,
             name:name,
@@ -306,8 +306,8 @@ module shui_module::shui {
     }
 
     fun record_swaped_amount(table: &mut Table<address, u64>, amount_culmulate:u64, recepient: address) {
-        let value = table::remove(table, recepient);
-        table::add(table, recepient, value - amount_culmulate);
+        let value:&mut u64 = table::borrow_mut(table, recepient);
+        *value = *value - amount_culmulate;
     }
 
     fun has_swap_amount(table: &Table<address, u64>, amount_to_swap:u64, recepient: address): bool {
