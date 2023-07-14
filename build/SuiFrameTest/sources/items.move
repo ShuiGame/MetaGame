@@ -22,14 +22,14 @@ module shui_module::items {
         bags:bag::Bag,
 
         // store nums of objects for print: name -> num
-        link_table:LinkedTable<string::String, u64>
+        link_table:LinkedTable<string::String, u16>
     }
 
     public(friend) fun new(ctx:&mut TxContext): Items {
         Items {
             id: object::new(ctx),
             bags:bag::new(ctx),
-            link_table:linked_table::new<string::String, u64>(ctx)
+            link_table:linked_table::new<string::String, u16>(ctx)
         }
     }
 
@@ -45,7 +45,7 @@ module shui_module::items {
             let vec = bag::borrow_mut(&mut items.bags, name);
             vector::push_back(vec, item);
             let len = vector::length(vec);
-            set_items_num(&mut items.link_table, name, len);
+            set_items_num(&mut items.link_table, name, (len as u16));
         } else {
             let vec = vector::empty<T>();
             vector::push_back(&mut vec, item);
@@ -64,7 +64,7 @@ module shui_module::items {
                 i = i + 1
             };
             let len = vector::length(vec);
-            set_items_num(&mut items.link_table, name, len);
+            set_items_num(&mut items.link_table, name, (len as u16));
         } else {
             let vec = vector::empty<T>();
             let (i, len) = (0u64, vector::length(&item_arr));
@@ -74,7 +74,7 @@ module shui_module::items {
                 i = i + 1
             };
             bag::add(&mut items.bags, name, vec);
-            set_items_num(&mut items.link_table, name, len);
+            set_items_num(&mut items.link_table, name, (len as u16));
         };
         vector::destroy_empty(item_arr);
     }
@@ -85,7 +85,7 @@ module shui_module::items {
         assert!(vector::length(vec) > 0, ERR_ITEMS_NOT_EXIST);
         let item = vector::pop_back(vec);
         let len = vector::length(vec);
-        set_items_num(&mut items.link_table, name, len);
+        set_items_num(&mut items.link_table, name, (len as u16));
         item
     }
 
@@ -101,11 +101,11 @@ module shui_module::items {
             i = i + 1
         };
         let len = vector::length(vec);
-        set_items_num(&mut items.link_table, name, len);
+        set_items_num(&mut items.link_table, name, (len as u16));
         extra_vec
     }
 
-    fun set_items_num(linked_table: &mut linked_table::LinkedTable<string::String, u64>, name:string::String, num:u64) {
+    fun set_items_num(linked_table: &mut linked_table::LinkedTable<string::String, u16>, name:string::String, num:u16) {
         if (linked_table::contains(linked_table, name)) {
             let num_m = linked_table::borrow_mut(linked_table, name);
             *num_m = num;
@@ -114,15 +114,34 @@ module shui_module::items {
         }
     }
 
-    public entry fun get_items_info(table: &linked_table::LinkedTable<string::String, u64>):string::String {
+    public entry fun get_items_info(table: &linked_table::LinkedTable<string::String, u16>) : string::String {
         if (linked_table::is_empty(table)) {
             return string::utf8(b"none")
         };
+        let output = string::utf8(b"");
         let key:&option::Option<string::String> = linked_table::front(table);
         let next:&option::Option<string::String> = linked_table::next(table, *option::borrow(key));
         while (option::is_some(next)) {
-            next = linked_table::next(table, *option::borrow(key));
+            let key_value = *option::borrow(key);
+            next = linked_table::next(table, key_value);
+            string::append(&mut output, key_value);
+            string::append(&mut output, string::utf8(b":"));
+            let val_str = linked_table::borrow(table, key_value);
+            string::append(&mut output, string::utf8(u16_to_decimal_string(*val_str)));
+            string::append(&mut output, string::utf8(b";"));
         };
-        string::utf8(b"something")
+        output
+    }
+
+    fun u16_to_decimal_string(val: u16): vector<u8> {
+        let vec = vector<u8>[];
+        loop {
+            let b = val % 10;
+            vector::push_back(&mut vec, (48 + b as u8));
+            val = val / 10;
+            if (val <= 0) break;
+        };
+        vector::reverse(&mut vec);
+        vec
     }
 }

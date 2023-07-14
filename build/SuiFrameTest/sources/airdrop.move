@@ -15,7 +15,6 @@ module shui_module::airdrop {
     const ERR_HAS_CLAIMED:u64 = 0x006;
     const ERR_INACTIVE_META:u64 = 0x007;
 
-
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
     const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
@@ -86,7 +85,7 @@ module shui_module::airdrop {
         if (table::contains(&info.daily_claim_records_list, user)) {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
         };
-        assert!((now - last_claim_time) > DAY_IN_MS, ERR_HAS_CLAIMED_IN_24HOUR);
+        assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         let amount = get_amount_by_time(info, clock);
         shui::airdrop_claim(global, amount, ctx);
         record_claim_time(&mut info.daily_claim_records_list, now, user)
