@@ -229,4 +229,8 @@ module shui_module::metaIdentity {
     public fun get_items(meta: &mut MetaIdentity) : &mut items::Items {
         &mut meta.items
     }
+
+    public fun get_items_info(meta: &MetaIdentity) : string::String {
+        items::get_items_info(&meta.items)
+    }
 }

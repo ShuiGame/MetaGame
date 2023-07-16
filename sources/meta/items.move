@@ -7,6 +7,7 @@ module shui_module::items {
     use std::string;
     use sui::tx_context::{TxContext};
     use std::option::{Self};
+    use std::ascii;
 
     friend shui_module::metaIdentity;
     friend shui_module::tree_of_life;
@@ -114,26 +115,52 @@ module shui_module::items {
         }
     }
 
-    public entry fun get_items_info(table: &linked_table::LinkedTable<string::String, u16>) : string::String {
+    public entry fun get_items_info7() : string::String {
+        let frag_str = string::utf8(b"fragment");
+        let coma = ascii::char(58);
+        let semi = ascii::char(59);
+
+        let vec_out:vector<u8> = ascii::into_bytes(string::to_ascii(frag_str));
+        vector::push_back(&mut vec_out, ascii::byte(coma));
+        vector::append(&mut vec_out, numbers_to_ascii_vector(123));
+        vector::push_back(&mut vec_out, ascii::byte(semi));
+        string::utf8(vec_out)
+    }
+
+    public entry fun get_items_info(items: &Items) : string::String {
+        let byte_coma = ascii::byte(ascii::char(58));
+        let byte_semi = ascii::byte(ascii::char(59));
+        let table: &linked_table::LinkedTable<string::String, u16> = &items.link_table;
         if (linked_table::is_empty(table)) {
             return string::utf8(b"none")
         };
-        let output = string::utf8(b"");
+        let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
         let key:&option::Option<string::String> = linked_table::front(table);
+        let key_value = *option::borrow(key);
+        vector::append(&mut vec_out, *string::bytes(&key_value));
+        vector::push_back(&mut vec_out, byte_coma);
+        let val_str = linked_table::borrow(table, key_value);
+        vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+        vector::push_back(&mut vec_out, byte_semi);
+
         let next:&option::Option<string::String> = linked_table::next(table, *option::borrow(key));
         while (option::is_some(next)) {
-            let key_value = *option::borrow(key);
-            next = linked_table::next(table, key_value);
-            string::append(&mut output, key_value);
-            string::append(&mut output, string::utf8(b":"));
+            let key_value = *option::borrow(next);
+            vector::append(&mut vec_out, *string::bytes(&key_value));
+            vector::push_back(&mut vec_out, byte_coma);
+
             let val_str = linked_table::borrow(table, key_value);
-            string::append(&mut output, string::utf8(u16_to_decimal_string(*val_str)));
-            string::append(&mut output, string::utf8(b";"));
+            vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+            vector::push_back(&mut vec_out, byte_semi);
+            next = linked_table::next(table, key_value);
         };
-        output
+
+        string::utf8(vec_out)
     }
 
-    fun u16_to_decimal_string(val: u16): vector<u8> {
+
+    // 123 -> [49,50,51]
+    fun numbers_to_ascii_vector(val: u16): vector<u8> {
         let vec = vector<u8>[];
         loop {
             let b = val % 10;

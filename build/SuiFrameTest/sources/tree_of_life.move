@@ -19,6 +19,7 @@ module shui_module::tree_of_life {
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
     const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
     const ERR_WRONG_TYPE:u64 = 0x003;
+    const ERR_COIN_NOT_ENOUGH:u64 = 0x004;
 
     // 0-4: fragment   100-200:water element
     const ITEM_TYPE:u64 = 0;
@@ -43,6 +44,17 @@ module shui_module::tree_of_life {
 
     struct Fruit has store {}
 
+    fun init(ctx: &mut TxContext) {
+        let global = TreeGlobal {
+            id: object::new(ctx),
+            balance_SHUI: balance::zero(),
+            creator: tx_context::sender(ctx),
+            water_down_last_time_records: table::new<address, u64>(ctx),
+            water_down_person_exp_records: table::new<address, u64>(ctx),
+        };
+        transfer::share_object(global);
+    }
+
     public entry fun mint(ctx:&mut TxContext) {
         let tree = Tree_of_life {
             id:object::new(ctx),
@@ -57,16 +69,19 @@ module shui_module::tree_of_life {
         let sender = tx_context::sender(ctx);
         let now = clock::timestamp_ms(clock);
         if (table::contains(&global.water_down_last_time_records, sender)) {
-            let lastWaterDownTime = *table::borrow(&global.water_down_last_time_records, sender);
-            assert!((now - lastWaterDownTime) > DAY_IN_MS, ERR_INTERVAL_TIME_ONE_DAY);
+            let lastWaterDownTime = table::borrow_mut(&mut global.water_down_last_time_records, sender);
+
+            // for test 86_400_000 <- 60_000
+            assert!((now - *lastWaterDownTime) > 60_000, ERR_INTERVAL_TIME_ONE_DAY);
+            *lastWaterDownTime = now;
         } else {
             table::add(&mut global.water_down_last_time_records, sender, now);
         };
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) >= amount, 1);
+        assert!(coin::value(&merged_coin) >= amount * 1_000_000, ERR_COIN_NOT_ENOUGH);
         let balance = coin::into_balance<SHUI>(
-            coin::split<SHUI>(&mut merged_coin, amount, ctx)
+            coin::split<SHUI>(&mut merged_coin, amount * 1_000_000, ctx)
         );
         balance::join(&mut global.balance_SHUI, balance);
         if (coin::value(&merged_coin) > 0) {
@@ -78,7 +93,7 @@ module shui_module::tree_of_life {
         // record the time and exp
         if (table::contains(&global.water_down_person_exp_records, sender)) {
             let last_exp = *table::borrow(&global.water_down_person_exp_records, sender);
-            if (last_exp == 4) {
+            if (last_exp == 2) {
                 items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
                 let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, sender);
                 *exp = 0;

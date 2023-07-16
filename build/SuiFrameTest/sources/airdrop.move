@@ -85,6 +85,8 @@ module shui_module::airdrop {
         if (table::contains(&info.daily_claim_records_list, user)) {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
         };
+
+        // for test 86_400_000 <- 60_000
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         let amount = get_amount_by_time(info, clock);
         shui::airdrop_claim(global, amount, ctx);
