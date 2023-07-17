@@ -195,4 +195,8 @@ module shui_module::tree_of_life {
         let hash: vector<u8> = hash::keccak256(&info);
         hash
     }
+
+    public fun get_water_down_person_exp(global: &TreeGlobal, wallet_addr:address):u64 {
+        *table::borrow(&global.water_down_person_exp_records, wallet_addr)
+    }
 }
