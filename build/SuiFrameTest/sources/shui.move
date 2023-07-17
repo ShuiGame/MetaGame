@@ -314,4 +314,19 @@ module shui_module::shui {
        let left_amount = *table::borrow(table, recepient);
        left_amount >= amount_to_swap
     }
+
+    public entry fun withdraw_sui(global: &mut Global, amount:u64, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+        let airdrop_balance = balance::split(&mut global.balance_SUI, amount);
+        let sui = coin::from_balance(airdrop_balance, ctx);
+        transfer::public_transfer(sui, tx_context::sender(ctx));
+    }
+
+    public entry fun withdraw_shui(global: &mut Global, amount:u64, ctx: &mut TxContext, ) {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+
+        let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
+        let shui = coin::from_balance(airdrop_balance, ctx);
+        transfer::public_transfer(shui, tx_context::sender(ctx));
+    }
 }
