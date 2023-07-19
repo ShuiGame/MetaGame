@@ -12,8 +12,9 @@ module shui_module::tree_of_life {
     use sui::bcs;
     use sui::clock::{Self, Clock};
     use shui_module::items;
-    use shui_module::metaIdentity::{MetaIdentity, get_items};
+    use shui_module::metaIdentity::{Self, MetaIdentity, get_items};
     use std::string;
+    use sui::event;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
@@ -33,6 +34,19 @@ module shui_module::tree_of_life {
         creator: address,
         water_down_last_time_records: Table<address, u64>,
         water_down_person_exp_records: Table<address, u64>,
+    }
+
+    // ====== Events ======
+    // For when someone has purchased a donut.
+    struct FruitOpened has copy, drop {
+        meta_id: u64,
+        name: string::String,
+        reward: string::String
+    }
+
+    struct WaterDownEvent has copy, drop {
+        meta_id: u64,
+        name: string::String,
     }
 
     struct WaterElementHoly has store, drop {}
@@ -109,6 +123,13 @@ module shui_module::tree_of_life {
         } else {
             table::add(&mut global.water_down_person_exp_records, sender, 1);
         };
+
+        event::emit(
+            WaterDownEvent {
+                meta_id: metaIdentity::getMetaId(meta),
+                name: metaIdentity::get_meta_name(meta),
+            }
+        )
     }
 
     public entry fun swap_fragment<T:store + drop>(meta:&mut MetaIdentity, fragment_type:string::String) {
@@ -146,27 +167,45 @@ module shui_module::tree_of_life {
     public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) {
         let Fruit {} = items::extract_item(get_items(meta), string::utf8(b"fruit"));
         let num = get_random_num(0, 30611, ctx);
+        let reword_string;
         if (num <= 1) {
+            reword_string = string::utf8(b"fragment_life");
             items::store_item(get_items(meta), string::utf8(b"water_element_holy"), WaterElementHoly{});
         } else if (num <= 11) {
-            items::store_item(get_items(meta), string::utf8(b"water_element_memory"), WaterElementMemory{});
+            reword_string = string::utf8(b"water_element_memory");
+            items::store_item(get_items(meta), reword_string, WaterElementMemory{});
         } else if (num <= 111) {
-            items::store_item(get_items(meta), string::utf8(b"water_element_blood"), WaterElementBlood{});
+            reword_string = string::utf8(b"water_element_blood");
+            items::store_item(get_items(meta), reword_string, WaterElementBlood{});
         } else if (num <= 611) {
-            items::store_item(get_items(meta), string::utf8(b"fragment_holy"), FragmentHoly{});
+            reword_string = string::utf8(b"fragment_holy");
+            items::store_item(get_items(meta), reword_string, FragmentHoly{});
         } else if (num <= 1611) {
-            items::store_item(get_items(meta), string::utf8(b"water_element_resurrect"), WaterElementResurrect{});
+            reword_string = string::utf8(b"water_element_resurrect");
+            items::store_item(get_items(meta), reword_string, WaterElementResurrect{});
         } else if (num <= 4111) {
-            items::store_item(get_items(meta), string::utf8(b"fragment_memory"), FragmentMemory{});
+            reword_string = string::utf8(b"fragment_memory");
+            items::store_item(get_items(meta), reword_string, FragmentMemory{});
         } else if (num <= 9111) {
-            items::store_item(get_items(meta), string::utf8(b"water_element_life"), WaterElementLife{});
+            reword_string = string::utf8(b"water_element_life");
+            items::store_item(get_items(meta), reword_string, WaterElementLife{});
         } else if (num <= 14611) {
-            items::store_item(get_items(meta), string::utf8(b"fragment_blood"), FragmentBlood{});
+            reword_string = string::utf8(b"fragment_blood");
+            items::store_item(get_items(meta), reword_string, FragmentBlood{});
         } else if (num <= 21611) {
-            items::store_item(get_items(meta), string::utf8(b"fragment_resurrect"), FragmentResurrect{});
+            reword_string = string::utf8(b"fragment_resurrect");
+            items::store_item(get_items(meta), reword_string, FragmentResurrect{});
         } else {
-            items::store_item(get_items(meta), string::utf8(b"fragment_life"), FragmentLife{});
-        }
+            reword_string = string::utf8(b"fragment_life");
+            items::store_item(get_items(meta), reword_string, FragmentLife{});
+        };
+        event::emit(
+            FruitOpened {
+                meta_id: metaIdentity::get_meta_id(meta),
+                name: metaIdentity::get_meta_name(meta),
+                reward: reword_string
+            }
+        );
     }
 
     fun get_random_num(min:u64, max:u64, ctx:&mut TxContext) :u64 {

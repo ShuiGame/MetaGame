@@ -6,7 +6,7 @@ module shui_module::metaIdentity {
     use sui::transfer::{Self};
     use sui::table::{Self};
     use std::vector::{Self};
-
+    use sui::event;
     use shui_module::items;
 
     friend shui_module::airdrop;
@@ -32,6 +32,14 @@ module shui_module::metaIdentity {
         email:string::String,
         bind_status: bool,
         items:items::Items
+    }
+
+
+    // ====== Events ======
+    // For when someone has purchased a donut.
+    struct RegisterEvent has copy, drop {
+        name: string::String,
+        email: string::String,
     }
 
     struct MetaInfoGlobal has key{
@@ -106,6 +114,13 @@ module shui_module::metaIdentity {
         assert!(!table::contains(&global.wallet_phone_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
         table::add(&mut global.wallet_phone_map, user_addr, phone);
         transfer::transfer(meta, user_addr);
+
+        event::emit(
+            RegisterEvent {
+                name: name,
+                email: email
+            }
+        );
     }
 
     fun generateUid(global: &mut MetaInfoGlobal, addr:address):u64 {
@@ -232,5 +247,13 @@ module shui_module::metaIdentity {
 
     public fun get_items_info(meta: &MetaIdentity) : string::String {
         items::get_items_info(&meta.items)
+    }
+
+    public fun get_meta_id(meta: &MetaIdentity): u64 {
+        *&meta.metaId
+    }
+
+    public fun get_meta_name(meta: &MetaIdentity): string::String {
+        *&meta.name
     }
 }
