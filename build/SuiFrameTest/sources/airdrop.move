@@ -35,8 +35,8 @@ module shui_module::airdrop {
         total_claim_amount: u64,
         culmulate_remain_amount: u64,
 
-        now_day: u64,
-        daily_claim_amount: u64,
+        now_days: u64,
+        total_daily_claim_amount: u64,
     }
 
     struct TimeCap has key {
@@ -53,8 +53,8 @@ module shui_module::airdrop {
             daily_claim_records_list: table::new<address, u64>(ctx),
             total_claim_amount: 0,
             culmulate_remain_amount: 0,
-            now_day: 0,
-            daily_claim_amount: 0,
+            now_days: 0,
+            total_daily_claim_amount: 0,
         };
         transfer::share_object(global);
         let time_cap = TimeCap {
@@ -63,7 +63,7 @@ module shui_module::airdrop {
         transfer::transfer(time_cap, tx_context::sender(ctx));
     }
 
-    public entry fun get_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
+    fun get_per_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
         let phase = get_phase_by_time(global, clock);
         assert!(phase >= 1 && phase <= 5, ERR_INVALID_PHASE);
         (60 - phase * 10) * AMOUNT_DECIMAL
@@ -92,18 +92,17 @@ module shui_module::airdrop {
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
-
-        // personal amount as 10^6
-        let amount = get_amount_by_time(info, clock);
+        let amount = get_per_amount_by_time(info, clock);
         let days = get_now_days(clock, info);
         let daily_limit = get_daily_limit(days);
-        if (days > info.now_day) {
-            info.now_day = days;
-            info.daily_claim_amount = amount;
+        if (days > info.now_days) {
+            info.now_days = days;
+            info.total_daily_claim_amount = amount;
         } else {
-            info.daily_claim_amount = info.daily_claim_amount + amount;
+            info.total_daily_claim_amount = info.total_daily_claim_amount + amount;
         };
-        assert!(info.daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
+        info.total_claim_amount = info.total_claim_amount + amount;
+        assert!(info.total_daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
         let last_claim_time = 0;
         if (table::contains(&info.daily_claim_records_list, user)) {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
@@ -111,7 +110,6 @@ module shui_module::airdrop {
 
         // for test 86_400_000 <- 60_000
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
-        info.total_claim_amount = info.total_claim_amount + amount;
         shui::airdrop_claim(global, amount, ctx);
         record_claim_time(&mut info.daily_claim_records_list, now, user)
     }
@@ -145,17 +143,17 @@ module shui_module::airdrop {
         info.total_claim_amount
     }
 
-    public entry fun get_daily_claim_amount(info: &AirdropGlobal):u64 {
-        info.daily_claim_amount
+    public entry fun get_total_daily_claim_amount(info: &AirdropGlobal):u64 {
+        info.total_daily_claim_amount
     }
 
     public entry fun get_daily_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
         let time_dif = clock::timestamp_ms(clock) - info.start;
         let days = time_dif / DAY_IN_MS;
-        get_daily_limit(days) - info.daily_claim_amount
+        get_daily_limit(days) - info.total_daily_claim_amount
     }
 
-    public entry fun get_daily_limit(days:u64):u64 {
+    public entry fun get_daily_limit(days:u64) :u64 {
         if (days == 120) {
             AMOUNT_DECIMAL
         } else {
