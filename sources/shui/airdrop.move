@@ -93,7 +93,11 @@ module shui_module::airdrop {
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
         let amount = get_per_amount_by_time(info, clock);
+        
+        // 1
         let days = get_now_days(clock, info);
+
+        // 1 000 000 
         let daily_limit = get_daily_limit(days);
         if (days > info.now_days) {
             info.now_days = days;
@@ -102,6 +106,8 @@ module shui_module::airdrop {
             info.total_daily_claim_amount = info.total_daily_claim_amount + amount;
         };
         info.total_claim_amount = info.total_claim_amount + amount;
+
+        // 0 < 1 000 000
         assert!(info.total_daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
         let last_claim_time = 0;
         if (table::contains(&info.daily_claim_records_list, user)) {
@@ -155,13 +161,14 @@ module shui_module::airdrop {
 
     public entry fun get_daily_limit(days:u64) :u64 {
         if (days == 120) {
-            AMOUNT_DECIMAL
+            1_000_000 * AMOUNT_DECIMAL
         } else {
-            (days / 30 + 1) * AMOUNT_DECIMAL
+            (days / 30 + 1) * 1_000_000 * AMOUNT_DECIMAL
         }
     }
 
     public entry fun get_culmulate_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
+        assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let time_dif = clock::timestamp_ms(clock) - info.start;
         let days = time_dif / DAY_IN_MS;
         if (days <= 30) {
