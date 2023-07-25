@@ -14,6 +14,7 @@ module shui_module::airdrop {
     const ERR_AIRDROP_NOT_START:u64 = 0x005;
     const ERR_HAS_CLAIMED:u64 = 0x006;
     const ERR_INACTIVE_META:u64 = 0x007;
+    const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
 
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
     const EStillClose: u64 = 1;
@@ -29,7 +30,13 @@ module shui_module::airdrop {
         // address -> has claimed the airdrop
         reserve_claim_records_list: table::Table<address, bool>,
         // address -> last claim time
-        daily_claim_records_list: table::Table<address, u64>
+        daily_claim_records_list: table::Table<address, u64>,
+
+        total_claim_amount: u64,
+        culmulate_remain_amount: u64,
+
+        now_day: u64,
+        daily_claim_amount: u64,
     }
 
     struct TimeCap has key {
@@ -44,6 +51,10 @@ module shui_module::airdrop {
             creator: tx_context::sender(ctx),
             reserve_claim_records_list: table::new<address, bool>(ctx),
             daily_claim_records_list: table::new<address, u64>(ctx),
+            total_claim_amount: 0,
+            culmulate_remain_amount: 0,
+            now_day: 0,
+            daily_claim_amount: 0,
         };
         transfer::share_object(global);
         let time_cap = TimeCap {
@@ -81,6 +92,18 @@ module shui_module::airdrop {
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
+
+        // personal amount as 10^6
+        let amount = get_amount_by_time(info, clock);
+        let days = get_now_days(clock, info);
+        let daily_limit = get_daily_limit(days);
+        if (days > info.now_day) {
+            info.now_day = days;
+            info.daily_claim_amount = amount;
+        } else {
+            info.daily_claim_amount = info.daily_claim_amount + amount;
+        };
+        assert!(info.daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
         let last_claim_time = 0;
         if (table::contains(&info.daily_claim_records_list, user)) {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
@@ -88,13 +111,9 @@ module shui_module::airdrop {
 
         // for test 86_400_000 <- 60_000
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
-        let amount = get_amount_by_time(info, clock);
+        info.total_claim_amount = info.total_claim_amount + amount;
         shui::airdrop_claim(global, amount, ctx);
         record_claim_time(&mut info.daily_claim_records_list, now, user)
-    }
-
-    public entry fun get_now(clock:&Clock):u64 {
-        clock::timestamp_ms(clock)
     }
 
     public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, meta: &MetaIdentity, global: &mut shui::Global, ctx: &mut TxContext) {
@@ -111,5 +130,52 @@ module shui_module::airdrop {
         info.start = clock::timestamp_ms(clock_object);
         let TimeCap { id } = time_cap;
         object::delete(id);
+    }
+
+    public fun get_now(clock:&Clock):u64 {
+        clock::timestamp_ms(clock)
+    }
+
+    public fun get_now_days(clock:&Clock, info: &AirdropGlobal):u64 {
+        let time_diff = clock::timestamp_ms(clock) - info.start;
+        time_diff / DAY_IN_MS + 1
+    }
+
+    public entry fun get_total_claim_amount(info: &AirdropGlobal):u64 {
+        info.total_claim_amount
+    }
+
+    public entry fun get_daily_claim_amount(info: &AirdropGlobal):u64 {
+        info.daily_claim_amount
+    }
+
+    public entry fun get_daily_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
+        let time_dif = clock::timestamp_ms(clock) - info.start;
+        let days = time_dif / DAY_IN_MS;
+        get_daily_limit(days) - info.daily_claim_amount
+    }
+
+    public entry fun get_daily_limit(days:u64):u64 {
+        if (days == 120) {
+            AMOUNT_DECIMAL
+        } else {
+            (days / 30 + 1) * AMOUNT_DECIMAL
+        }
+    }
+
+    public entry fun get_culmulate_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
+        let time_dif = clock::timestamp_ms(clock) - info.start;
+        let days = time_dif / DAY_IN_MS;
+        if (days <= 30) {
+            days * AMOUNT_DECIMAL - info.total_claim_amount
+        } else if (days <= 60) {
+            (30 + days * 2) * AMOUNT_DECIMAL - info.total_claim_amount
+        } else if (days <= 90) {
+            (90 + days * 3) * AMOUNT_DECIMAL - info.total_claim_amount
+        } else if (days <= 120) {
+            (180 + days * 4) * AMOUNT_DECIMAL - info.total_claim_amount
+        } else {
+            (300 + days) * AMOUNT_DECIMAL - info.total_claim_amount
+        }
     }
 }

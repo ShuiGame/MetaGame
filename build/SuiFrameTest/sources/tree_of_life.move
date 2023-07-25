@@ -44,11 +44,6 @@ module shui_module::tree_of_life {
         reward: string::String
     }
 
-    struct WaterDownEvent has copy, drop {
-        meta_id: u64,
-        name: string::String,
-    }
-
     struct WaterElementHoly has store, drop {}
     struct WaterElementMemory has store, drop {}
     struct WaterElementBlood has store, drop {}
@@ -123,13 +118,6 @@ module shui_module::tree_of_life {
         } else {
             table::add(&mut global.water_down_person_exp_records, sender, 1);
         };
-
-        event::emit(
-            WaterDownEvent {
-                meta_id: metaIdentity::getMetaId(meta),
-                name: metaIdentity::get_meta_name(meta),
-            }
-        )
     }
 
     public entry fun swap_fragment<T:store + drop>(meta:&mut MetaIdentity, fragment_type:string::String) {
