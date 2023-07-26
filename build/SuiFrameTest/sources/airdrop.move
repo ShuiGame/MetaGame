@@ -93,11 +93,7 @@ module shui_module::airdrop {
         let now = clock::timestamp_ms(clock);
         let user = tx_context::sender(ctx);
         let amount = get_per_amount_by_time(info, clock);
-        
-        // 1
         let days = get_now_days(clock, info);
-
-        // 1 000 000 
         let daily_limit = get_daily_limit(days);
         if (days > info.now_days) {
             info.now_days = days;
@@ -106,37 +102,17 @@ module shui_module::airdrop {
             info.total_daily_claim_amount = info.total_daily_claim_amount + amount;
         };
         info.total_claim_amount = info.total_claim_amount + amount;
-
-        // 0 < 1 000 000
         assert!(info.total_daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
         let last_claim_time = 0;
         if (table::contains(&info.daily_claim_records_list, user)) {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
         };
-
-        // for test 86_400_000 <- 60_000
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         shui::airdrop_claim(global, amount, ctx);
         record_claim_time(&mut info.daily_claim_records_list, now, user)
     }
 
-    public entry fun test01(info: &AirdropGlobal) {
-        let daily_limit = get_daily_limit(1);
-        assert!(info.total_daily_claim_amount < daily_limit, ERR_EXCEED_DAILY_LIMIT);
-    }
-
-    public entry fun test02(info: &AirdropGlobal) {
-        assert!(info.total_daily_claim_amount < 1_000_000, ERR_EXCEED_DAILY_LIMIT);
-    }
-
-    public entry fun test03(clock:&Clock, info: &AirdropGlobal):u64 {
-        let days = get_now_days(clock, info);
-        let daily_limit = get_daily_limit(days);
-        daily_limit
-    }
-
     public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, meta: &MetaIdentity, global: &mut shui::Global, ctx: &mut TxContext) {
-        // todo:change whitelist to meta id check
         assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
         assert!(metaIdentity::getMetaId(meta) < 20000, 1);
         let account = tx_context::sender(ctx);
@@ -176,9 +152,9 @@ module shui_module::airdrop {
 
     public entry fun get_daily_limit(days:u64) :u64 {
         if (days == 120) {
-            AMOUNT_DECIMAL
+            1_000_000 * AMOUNT_DECIMAL
         } else {
-            (days / 30 + 1) * AMOUNT_DECIMAL
+            (days / 30 + 1) * 1_000_000 * AMOUNT_DECIMAL
         }
     }
 
@@ -186,7 +162,9 @@ module shui_module::airdrop {
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let time_dif = clock::timestamp_ms(clock) - info.start;
         let days = time_dif / DAY_IN_MS;
-        if (days <= 30) {
+        if (days == 0) {
+            0
+        } else if (days <= 30) {
             days * AMOUNT_DECIMAL - info.total_claim_amount
         } else if (days <= 60) {
             (30 + days * 2) * AMOUNT_DECIMAL - info.total_claim_amount
