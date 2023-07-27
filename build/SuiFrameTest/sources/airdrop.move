@@ -19,11 +19,10 @@ module shui_module::airdrop {
     const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
     const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
-    const AMOUNT_DECIMAL:u64 = 1_000_000;
+    const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
     struct AirdropGlobal has key {
         id: UID,
-        current_phase: u64,
         start: u64,
         creator: address,
 
@@ -46,7 +45,6 @@ module shui_module::airdrop {
     fun init(ctx: &mut TxContext) {
         let global = AirdropGlobal {
             id: object::new(ctx),
-            current_phase: 1,
             start: 0,
             creator: tx_context::sender(ctx),
             reserve_claim_records_list: table::new<address, bool>(ctx),
@@ -69,7 +67,7 @@ module shui_module::airdrop {
         (60 - phase * 10) * AMOUNT_DECIMAL
     }
 
-    fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock):u64 {
+    public fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let diff = now - info.start;
         let phase = diff / DAY_IN_MS + 1;
@@ -129,6 +127,10 @@ module shui_module::airdrop {
 
     public fun get_now(clock:&Clock):u64 {
         clock::timestamp_ms(clock)
+    }
+    
+    public fun get_participator_num(info:&AirdropGlobal) :u64 {
+        table::length(&info.daily_claim_records_list)
     }
 
     public fun get_now_days(clock:&Clock, info: &AirdropGlobal):u64 {

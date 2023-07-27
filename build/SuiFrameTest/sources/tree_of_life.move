@@ -17,6 +17,7 @@ module shui_module::tree_of_life {
     use sui::event;
 
     const DAY_IN_MS: u64 = 86_400_000;
+    const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
     const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
     const ERR_WRONG_TYPE:u64 = 0x003;
@@ -93,9 +94,9 @@ module shui_module::tree_of_life {
         };
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) >= amount * 1_000_000, ERR_COIN_NOT_ENOUGH);
+        assert!(coin::value(&merged_coin) >= amount * AMOUNT_DECIMAL, ERR_COIN_NOT_ENOUGH);
         let balance = coin::into_balance<SHUI>(
-            coin::split<SHUI>(&mut merged_coin, amount * 1_000_000, ctx)
+            coin::split<SHUI>(&mut merged_coin, amount * AMOUNT_DECIMAL, ctx)
         );
         balance::join(&mut global.balance_SHUI, balance);
         if (coin::value(&merged_coin) > 0) {

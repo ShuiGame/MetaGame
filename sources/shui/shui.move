@@ -47,7 +47,7 @@ module shui_module::shui {
     const DAO_RESERVE:u64 = 50_000_000;
     const GAME_RESERVE:u64 = 1_200_000_000;
     const EXCHANGE_RESERVE:u64 = 100_000_000;
-    const AMOUNT_DECIMAL:u64 = 1_000_000;
+    const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
     struct SHUI has drop {}
     struct Global has key {
@@ -66,6 +66,9 @@ module shui_module::shui {
         angle_invest_whitelist: Table<address, u64>,
         meta_id_whitelist: Table<address, u64>,
         players_count:u64,
+
+        swaped_sui:u64,
+        swaped_shui:u64,
 
         metauser_list: Table<address, u64>,
     }
@@ -93,7 +96,7 @@ module shui_module::shui {
 
     fun init(witness: SHUI, ctx: &mut TxContext) {
         let (adminCap, metadata) = coin::create_currency(witness, 
-            6,
+            9,
             b"SHUI",
             b"SHUI",
             b"SHUI token",
@@ -117,6 +120,8 @@ module shui_module::shui {
             meta_id_whitelist: table::new<address, u64>(ctx),
 
             players_count:0,
+            swaped_sui:0,
+            swaped_shui:0,
             metauser_list: table::new<address, u64>(ctx),
         };
         let total_shui = mint(&mut adminCap, TOTAL_SUPPLY * AMOUNT_DECIMAL, ctx);
@@ -139,8 +144,6 @@ module shui_module::shui {
         assert!(!table::contains(&global.metauser_list, tx_context::sender(ctx)), ERR_META_HAS_CREATED);
         global.players_count = global.players_count + 1;
         let metaId = global.players_count;
-
-        // todo: 0-9999 for sale
 
         // 10000 - 20000 for meta_id_vip
         metaId = metaId + 10_000;
@@ -216,17 +219,20 @@ module shui_module::shui {
         } else {
             whitelist_table = &mut global.angle_invest_whitelist;
         };
+        let shui_to_be_swap:u64 = sui_pay_amount * ratio;
         if (type != TYPE_PUBLIC) {
             assert!(table::contains(whitelist_table, tx_context::sender(ctx)), ERR_NOT_IN_WHITELIST);
-            assert!(has_swap_amount(whitelist_table, sui_pay_amount * ratio, recepient), EXCEED_SWAP_LIMIT);
+            assert!(has_swap_amount(whitelist_table, shui_to_be_swap, recepient), EXCEED_SWAP_LIMIT);
         };
+        global.swaped_shui = global.swaped_shui + shui_to_be_swap * AMOUNT_DECIMAL;
+        global.swaped_sui = global.swaped_sui + sui_pay_amount * AMOUNT_DECIMAL;
         let account = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
         assert!(coin::value(&merged_coin) >= 1, ERR_SWAP_MIN_ONE_SUI);
         assert!(sui_pay_amount <= limit, ERR_SWAP_MIN_ONE_SUI);
         let balance = coin::into_balance<SUI>(
-            coin::split<SUI>(&mut merged_coin, sui_pay_amount * 1_000_000_000, ctx)
+            coin::split<SUI>(&mut merged_coin, sui_pay_amount * AMOUNT_DECIMAL, ctx)
         );
         balance::join(&mut global.balance_SUI, balance);
         if (coin::value(&merged_coin) > 0) {
@@ -234,8 +240,7 @@ module shui_module::shui {
         } else {
             destroy_zero(merged_coin)
         };
-        let shui_amount:u64 = sui_pay_amount * ratio;
-        let shui_balance = balance::split(&mut global.balance_SHUI, shui_amount * 1_000_000);
+        let shui_balance = balance::split(&mut global.balance_SHUI, shui_to_be_swap * AMOUNT_DECIMAL);
         let shui = coin::from_balance(shui_balance, ctx);
         transfer::public_transfer(shui, account);
         if (type != TYPE_PUBLIC) {
@@ -269,7 +274,8 @@ module shui_module::shui {
         } else if (type == TYPE_META_VIP) {
             whitelist_table = &mut global.meta_id_whitelist;
         } else {
-            whitelist_table = &mut global.meta_id_whitelist; // don't reach mannually
+            // never reach mannually
+            whitelist_table = &mut global.meta_id_whitelist;
         };
         assert!(table::length(whitelist_table) == 0, 1);
         table::add(whitelist_table, account, reserve);
@@ -295,7 +301,8 @@ module shui_module::shui {
         } else if (type == TYPE_META_VIP) {
             whitelist_table = &mut global.meta_id_whitelist;
         } else {
-            whitelist_table = &mut global.meta_id_whitelist;  // don't reach mannually
+            // never reach mannually
+            whitelist_table = &mut global.meta_id_whitelist;
         };
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
@@ -322,11 +329,19 @@ module shui_module::shui {
         transfer::public_transfer(sui, tx_context::sender(ctx));
     }
 
-    public entry fun withdraw_shui(global: &mut Global, amount:u64, ctx: &mut TxContext, ) {
+    public entry fun withdraw_shui(global: &mut Global, amount:u64, ctx: &mut TxContext) {
         assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
 
         let airdrop_balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
         transfer::public_transfer(shui, tx_context::sender(ctx));
+    }
+
+    public fun get_swaped_sui(global: &Global) :u64 {
+        global.swaped_sui
+    }
+
+    public fun get_swaped_shui(global: &Global) :u64 {
+        global.swaped_shui
     }
 }
