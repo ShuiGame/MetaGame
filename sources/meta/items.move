@@ -2,7 +2,6 @@
 module shui_module::items {
     use sui::bag::{Self};
     use sui::linked_table::{Self, LinkedTable};
-    use sui::object::{Self, UID};
     use std::vector::{Self};
     use std::string;
     use sui::tx_context::{TxContext};
@@ -16,9 +15,7 @@ module shui_module::items {
     const ERR_ITEMS_NOT_EXIST:u64 = 0x002;
     const ERR_ITEMS_NOT_ENOUGH:u64 = 0x003;
 
-    struct Items has key, store {
-        id:UID,
-
+    struct Items has store {
         // store all objects: name -> vector<T>
         bags:bag::Bag,
 
@@ -28,15 +25,13 @@ module shui_module::items {
 
     public(friend) fun new(ctx:&mut TxContext): Items {
         Items {
-            id: object::new(ctx),
             bags:bag::new(ctx),
             link_table:linked_table::new<string::String, u16>(ctx)
         }
     }
 
     public(friend) fun destroy_empty(items: Items) {
-        let Items {id, bags:bags, link_table} = items;
-        object::delete(id);
+        let Items {bags:bags, link_table} = items;
         linked_table::drop(link_table);
         bag::destroy_empty(bags);
     }
@@ -115,19 +110,7 @@ module shui_module::items {
         }
     }
 
-    public entry fun get_items_info7() : string::String {
-        let frag_str = string::utf8(b"fragment");
-        let coma = ascii::char(58);
-        let semi = ascii::char(59);
-
-        let vec_out:vector<u8> = ascii::into_bytes(string::to_ascii(frag_str));
-        vector::push_back(&mut vec_out, ascii::byte(coma));
-        vector::append(&mut vec_out, numbers_to_ascii_vector(123));
-        vector::push_back(&mut vec_out, ascii::byte(semi));
-        string::utf8(vec_out)
-    }
-
-    public entry fun get_items_info(items: &Items) : string::String {
+    public(friend) fun get_items_info(items: &Items) : string::String {
         let byte_coma = ascii::byte(ascii::char(58));
         let byte_semi = ascii::byte(ascii::char(59));
         let table: &linked_table::LinkedTable<string::String, u16> = &items.link_table;
@@ -157,7 +140,6 @@ module shui_module::items {
 
         string::utf8(vec_out)
     }
-
 
     // 123 -> [49,50,51]
     fun numbers_to_ascii_vector(val: u16): vector<u8> {
