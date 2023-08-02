@@ -49,7 +49,7 @@ module shui_module::founder_team_reserve {
         whitelist_tech_team: table::Table<address, u64>,
         whitelist_promotion: table::Table<address, u64>,
 
-        // record to disallow reset whitelist
+        // record to disallow set whitelist on same account
         address_set: table::Table<address, u64>,
         claim_record: table::Table<address, u64>,
     }
@@ -106,7 +106,7 @@ module shui_module::founder_team_reserve {
 
     public entry fun add_white_list(global:&mut FounderTeamGlobal, account:address, type:u64, ctx: &mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (address_set, whitelist_table) = get_white_list(global, type);
+        let (address_set, whitelist_table) = borrow_mut_white_list(global, type);
         assert!(!table::contains(address_set, account), ERR_ACCOUNT_HAS_BEEN_IN_WHITELIST);
         table::add(address_set, account, 0);
         table::add(whitelist_table, account, 0);
@@ -116,7 +116,7 @@ module shui_module::founder_team_reserve {
 
     public entry fun set_white_lists(global:&mut FounderTeamGlobal, whitelist: vector<address>, type:u64, ctx: &mut TxContext) {
         assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
-        let (address_set, whitelist_table) = get_white_list(global, type);
+        let (address_set, whitelist_table) = borrow_mut_white_list(global, type);
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
@@ -127,7 +127,7 @@ module shui_module::founder_team_reserve {
         };
     }
 
-    fun get_white_list(global: &mut FounderTeamGlobal, type:u64) : (&mut table::Table<address, u64>, &mut table::Table<address, u64>) {
+    fun borrow_mut_white_list(global: &mut FounderTeamGlobal, type:u64) : (&mut table::Table<address, u64>, &mut table::Table<address, u64>) {
         assert!(type >= 0 && type <= 4, ERR_INVALID_TYPE);
         let whitelist_table;
         if (type == TYPE_FOUNDER) {
@@ -144,6 +144,25 @@ module shui_module::founder_team_reserve {
             whitelist_table = &mut global.whitelist_promotion;
         };
         (&mut global.address_set, whitelist_table)
+    }
+
+    fun borrow_white_list(global: &FounderTeamGlobal, type:u64) : &table::Table<address, u64> {
+        assert!(type >= 0 && type <= 4, ERR_INVALID_TYPE);
+        let whitelist_table;
+        if (type == TYPE_FOUNDER) {
+            whitelist_table = &global.whitelist_founder;
+        } else if (type == TYPE_CO_FOUNDER) {
+            whitelist_table = &global.whitelist_co_founder;
+        } else if (type == TYPE_CORE_MEMBER) {
+            whitelist_table = &global.whitelist_core_members;
+        } else if (type == TYPE_TECH_TEAM) {
+            whitelist_table = &global.whitelist_tech_team;
+        } else if (type == TYPE_PROMOTION) {
+            whitelist_table = &global.whitelist_promotion;
+        } else {
+            whitelist_table = &global.whitelist_promotion;
+        };
+        whitelist_table
     }
 
     fun get_white_list_limit(type:u64) :u64 {
@@ -214,21 +233,13 @@ module shui_module::founder_team_reserve {
         }
     }
 
-    public fun is_in_whitelist(global:&FounderTeamGlobal, type:u64, account:address) : bool {
-        let whitelist_table;
-        if (type == TYPE_FOUNDER) {
-            whitelist_table = &global.whitelist_founder;
-        } else if (type == TYPE_CO_FOUNDER) {
-            whitelist_table = &global.whitelist_co_founder;
-        } else if (type == TYPE_CORE_MEMBER) {
-            whitelist_table = &global.whitelist_core_members;
-        } else if (type == TYPE_TECH_TEAM) {
-            whitelist_table = &global.whitelist_tech_team;
-        } else if (type == TYPE_PROMOTION) {
-            whitelist_table = &global.whitelist_promotion;
-        } else {
-            whitelist_table = &global.whitelist_promotion;
-        };
+    public fun is_in_whitelist(global:&mut FounderTeamGlobal, type:u64, account:address) : bool {
+        let whitelist_table = borrow_white_list(global, type);
         table::contains(whitelist_table, account)
+    }
+
+    public fun get_white_list_size(global:&mut FounderTeamGlobal, type:u64) : u64 {
+        let whitelist_table = borrow_white_list(global, type);
+        table::length(whitelist_table)
     }
 }

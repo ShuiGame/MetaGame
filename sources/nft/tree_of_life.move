@@ -17,8 +17,8 @@ module shui_module::tree_of_life {
     use std::string;
     use sui::event;
 
-
     const DAY_IN_MS: u64 = 86_400_000;
+    const HOUR_IN_MS: u64 = 3_600_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
     const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
@@ -264,5 +264,19 @@ module shui_module::tree_of_life {
 
     public fun get_water_down_person_exp(global: &TreeGlobal, wallet_addr:address):u64 {
         *table::borrow(&global.water_down_person_exp_records, wallet_addr)
+    }
+
+    public fun get_water_down_left_time_mills(global: &TreeGlobal, wallet_addr:address, clock: &Clock) : u64 {
+        let now = clock::timestamp_ms(clock);
+        let last_time = 0;
+        if (table::contains(&global.water_down_last_time_records, wallet_addr)) {
+            last_time = *table::borrow(&global.water_down_last_time_records, wallet_addr);
+        };
+        let next_time = last_time + 8 * HOUR_IN_MS;
+        if (now > next_time) {
+            now - next_time
+        } else {
+            0
+        }
     }
 }
