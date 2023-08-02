@@ -83,7 +83,7 @@ module shui_module::metaIdentity {
             wallet_meta_map:table::new<address, address>(ctx),
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
-            register_owner:@register_owner
+            register_owner:@register_manager
         };
         transfer::share_object(global);
     }

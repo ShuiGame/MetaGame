@@ -16,7 +16,6 @@ module shui_module::airdrop {
     const ERR_HAS_CLAIMED:u64 = 0x006;
     const ERR_INACTIVE_META:u64 = 0x007;
     const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
-    const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 

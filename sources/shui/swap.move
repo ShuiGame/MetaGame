@@ -10,22 +10,13 @@ module shui_module::swap {
     use sui::coin::{Self, Coin, destroy_zero};
     use sui::pay;
 
-    const ERR_INVALID_PHASE:u64 = 0x001;
-    const ERR_NO_PERMISSION:u64 = 0x002;
-    const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
-    const ERR_AIRDROP_NOT_START:u64 = 0x005;
-    const ERR_HAS_CLAIMED:u64 = 0x006;
-    const ERR_INACTIVE_META:u64 = 0x007;
-    const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
-    const ERR_EXCEED_SWAP_LIMIT:u64 = 0x006;
-    const ERR_NOT_IN_WHITELIST:u64 = 0x007;
-    const ERR_SWAP_MIN_ONE_SUI:u64 = 0x008;
+    const ERR_NO_PERMISSION:u64 = 0x001;
+    const ERR_EXCEED_SWAP_LIMIT:u64 = 0x002;
+    const ERR_NOT_IN_WHITELIST:u64 = 0x003;
+    const ERR_SWAP_MIN_ONE_SUI:u64 = 0x004;
 
-
-    const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
-
     const WHITELIST_SWAP_LIMIT:u64 = 10_000;
     const WHITELIST_MAX_NUM:u64 = 10_000;
 

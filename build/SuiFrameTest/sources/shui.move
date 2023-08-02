@@ -13,9 +13,9 @@ module shui_module::shui {
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
 
-
     friend shui_module::airdrop;   
-    friend shui_module::swap; 
+    friend shui_module::swap;
+    friend shui_module::founder_team_reserve;
 
     const TYPE_FOUNDER:u64 = 0;
     const TYPE_CO_FOUNDER:u64 = 1;
@@ -43,14 +43,16 @@ module shui_module::shui {
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
     const FOUNDATION_RESERVE:u64 = 50_000_000;
     const DAO_RESERVE:u64 = 50_000_000;
-    const GAME_RESERVE:u64 = 1_200_000_000;
-    const EXCHANGE_RESERVE:u64 = 100_000_000;
+    const GAME_RESERVE:u64 = 1_379_000_000;
+    const FOUNDER_TEAM_RESERVE:u64 = 21_000_000;
+
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
     const AIRDROP_AMOUNT:u64 = 300_000_000;
     const SWAP_AMOUNT:u64 = 300_000_000;
 
     struct SHUI has drop {}
+
     struct Global has key {
         id: UID,
         supply: u64,
@@ -95,11 +97,9 @@ module shui_module::shui {
         balance::join(&mut global.balance_SHUI, balance);
 
         // transfer ther reserve shui to dao and foundation account;
+        transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE * AMOUNT_DECIMAL, ctx);
-        transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE * AMOUNT_DECIMAL, ctx);
-        transfer_to_reserve(&mut global, @exchange_reserve_wallet, EXCHANGE_RESERVE * AMOUNT_DECIMAL, ctx);
-        // transfer_to_reserve(&mut global, @airdrop_reserve_contract, ctx);
         transfer::share_object(global);
     }
 
@@ -119,7 +119,7 @@ module shui_module::shui {
         charactor.gift = gift::new_gift(gift);
     }
 
-    public fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
+    fun mint(treasuryCap:&mut TreasuryCap<SHUI>, amount:u64, ctx:&mut TxContext) : Coin<SHUI>{
         coin::mint(treasuryCap, amount, ctx)
     }
 
@@ -155,5 +155,10 @@ module shui_module::shui {
     public(friend) fun extract_swap_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
         assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
         balance::split(&mut global.balance_SHUI, SWAP_AMOUNT * AMOUNT_DECIMAL)
+    }
+
+    public(friend) fun extract_founder_reserve_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+        balance::split(&mut global.balance_SHUI, FOUNDER_TEAM_RESERVE * AMOUNT_DECIMAL)
     }
 }

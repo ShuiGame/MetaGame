@@ -184,7 +184,7 @@ module shui_module::tree_of_life {
     }
 
     fun random_element(meta:&mut MetaIdentity, ctx:&mut TxContext):string::String {
-        let num = get_random_num(0, 30611, ctx);
+        let num = get_random_num(0, 30610, ctx);
         let reward_string;
         if (num == 0) {
             reward_string = string::utf8(b"fragment_life");
@@ -234,9 +234,9 @@ module shui_module::tree_of_life {
         );
     }
 
-    // [min, max)
+    // [min, max]
     fun get_random_num(min:u64, max:u64, ctx:&mut TxContext) :u64 {
-        (min + bytes_to_u64(seed(ctx))) % max
+        (min + bytes_to_u64(seed(ctx))) % (max + 1)
     }
 
     fun bytes_to_u64(bytes: vector<u8>): u64 {
