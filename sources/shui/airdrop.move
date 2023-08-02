@@ -68,7 +68,7 @@ module shui_module::airdrop {
     fun get_per_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
         let phase = get_phase_by_time(global, clock);
         assert!(phase >= 1 && phase <= 5, ERR_INVALID_PHASE);
-        (60 - phase * 10) * AMOUNT_DECIMAL
+        (35 - phase * 5) * AMOUNT_DECIMAL
     }
 
     public fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock) : u64 {
