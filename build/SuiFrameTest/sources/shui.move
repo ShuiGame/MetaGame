@@ -65,23 +65,10 @@ module shui_module::shui {
         partner_whitelist: Table<address, u64>,
         angle_invest_whitelist: Table<address, u64>,
         meta_id_whitelist: Table<address, u64>,
-        players_count:u64,
-
         swaped_sui:u64,
         swaped_shui:u64,
 
         metauser_list: Table<address, u64>,
-    }
-
-    struct MetaIdentity has key {
-        // preserve 0-20000 for airdrop
-        id:UID,
-        metaId:u64,
-        name:string::String,
-        phone:string::String,
-        bind_status: bool,
-        bind_charactor: address,
-        airdop_claim_time: u64,
     }
 
     struct Inscription has key {
@@ -118,8 +105,6 @@ module shui_module::shui {
             partner_whitelist: table::new<address, u64>(ctx),
             angle_invest_whitelist: table::new<address, u64>(ctx),
             meta_id_whitelist: table::new<address, u64>(ctx),
-
-            players_count:0,
             swaped_sui:0,
             swaped_shui:0,
             metauser_list: table::new<address, u64>(ctx),
@@ -140,33 +125,7 @@ module shui_module::shui {
         transfer::share_object(global);
     }
 
-    public entry fun createMetaIdentity(global: &mut Global, name:string::String, ctx: &mut TxContext) {
-        assert!(!table::contains(&global.metauser_list, tx_context::sender(ctx)), ERR_META_HAS_CREATED);
-        global.players_count = global.players_count + 1;
-        let metaId = global.players_count;
-
-        // 10000 - 20000 for meta_id_vip
-        metaId = metaId + 10_000;
-        if (!table::contains(&global.meta_id_whitelist, tx_context::sender(ctx))) {
-            metaId = metaId + 10_000;
-        };
-
-        let charactor = new_empty_charactor(ctx);
-        let meta = MetaIdentity {
-            id:object::new(ctx),
-            metaId:metaId,
-            name:name,
-            bind_charactor: object::uid_to_address(&charactor.id),
-            bind_status: false,
-            phone:string::utf8(b""),
-            airdop_claim_time: 0,
-        };
-        transfer::transfer(charactor, tx_context::sender(ctx));
-        transfer::transfer(meta, tx_context::sender(ctx));
-        table::add(&mut global.metauser_list, tx_context::sender(ctx), 0);
-    }
-
-    fun new_empty_charactor(ctx: &mut TxContext):Inscription {
+    public fun new_empty_charactor(ctx: &mut TxContext):Inscription {
         Inscription{
             id:object::new(ctx),
             name:string::utf8(b""),

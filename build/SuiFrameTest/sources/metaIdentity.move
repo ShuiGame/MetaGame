@@ -9,8 +9,6 @@ module shui_module::metaIdentity {
     use sui::event;
     use shui_module::items;
 
-    friend shui_module::airdrop;
-
     const ERR_NO_PERMISSION:u64 = 0x004;
     const ERR_UNBINDED:u64 = 0x003;
     const ERR_ALREADY_BIND:u64 = 0x008;

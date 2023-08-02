@@ -70,7 +70,8 @@ module shui_module::airdrop {
     public fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let diff = now - info.start;
-        // test中 1天一阶段
+
+        // test 1 phase 1 day
         let phase = diff / (1 * DAY_IN_MS) + 1;
         if (phase > 5) {
             phase = 5;

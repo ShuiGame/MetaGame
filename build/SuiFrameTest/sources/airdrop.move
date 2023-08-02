@@ -70,7 +70,9 @@ module shui_module::airdrop {
     public fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let diff = now - info.start;
-        let phase = diff / DAY_IN_MS + 1;
+
+        // test 1 phase 1 day
+        let phase = diff / (1 * DAY_IN_MS) + 1;
         if (phase > 5) {
             phase = 5;
         };
@@ -160,22 +162,22 @@ module shui_module::airdrop {
         }
     }
 
-    public entry fun get_culmulate_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
+    public entry fun get_culmulate_remain_amount(clock:&Clock, info: &AirdropGlobal) :u64 {
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let time_dif = clock::timestamp_ms(clock) - info.start;
         let days = time_dif / DAY_IN_MS;
         if (days == 0) {
             0
         } else if (days <= 30) {
-            days * AMOUNT_DECIMAL - info.total_claim_amount
+            days * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else if (days <= 60) {
-            (30 + days * 2) * AMOUNT_DECIMAL - info.total_claim_amount
+            (30 + days * 2) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else if (days <= 90) {
-            (90 + days * 3) * AMOUNT_DECIMAL - info.total_claim_amount
+            (90 + days * 3) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else if (days <= 120) {
-            (180 + days * 4) * AMOUNT_DECIMAL - info.total_claim_amount
+            (180 + days * 4) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else {
-            (300 + days) * AMOUNT_DECIMAL - info.total_claim_amount
+            (300 + days) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         }
     }
 }
