@@ -164,9 +164,14 @@ module shui_module::founder_team_reserve {
         limit
     }
 
-    fun get_unlock_reserve_amount(global:&FounderTeamGlobal, type:u64, clock: &Clock) : u64 {
+    fun get_unlock_reserve_amount(global:&FounderTeamGlobal, type:u64, phase:u64, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
-        let num_months = (now - global.first_phase_start) / (30 * DAY_IN_MS) + 1;
+        let num_months;
+        if (phase == 1) {
+            num_months = (now - global.first_phase_start) / (30 * DAY_IN_MS) + 1;
+        } else {
+            num_months = (now - global.second_phase_start) / (30 * DAY_IN_MS) + 1;
+        };
         if (num_months >= 10) {
             num_months = 10;
         };
@@ -184,17 +189,22 @@ module shui_module::founder_team_reserve {
         } else {
             reseve_per_amount = 0;
         };
-        reseve_per_amount * num_months / 10
+        reseve_per_amount * num_months / 10 / 2
     }
 
-    public entry fun claim_reserve(global: &mut FounderTeamGlobal, clock:&Clock, type:u64, ctx: &mut TxContext) {
-        assert!(global.first_phase_start > 0, ERR_RESERVE_IS_lOCKED);
+    public entry fun claim_reserve(global: &mut FounderTeamGlobal, clock:&Clock, type:u64, phase:u64, ctx: &mut TxContext) {
+        assert!(phase == 1 || phase == 2, ERR_INVALID_PHASE);
+        if (phase == 1) {
+            assert!(global.first_phase_start > 0, ERR_RESERVE_IS_lOCKED);
+        } else {
+            assert!(global.second_phase_start > 0, ERR_RESERVE_IS_lOCKED);
+        };
         let account = tx_context::sender(ctx);
         let claimed = 0;
         if (table::contains(&global.claim_record, account)) {
             claimed = *table::borrow(&global.claim_record, account);
         };
-        let reserve = get_unlock_reserve_amount(global, type, clock);
+        let reserve = get_unlock_reserve_amount(global, type, phase, clock);
         if (reserve - claimed > 0) {
             let airdrop_balance = balance::split(&mut global.balance_SHUI, (reserve - claimed) * AMOUNT_DECIMAL);
             let shui = coin::from_balance(airdrop_balance, ctx);
