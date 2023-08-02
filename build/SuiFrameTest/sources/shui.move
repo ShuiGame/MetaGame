@@ -49,10 +49,14 @@ module shui_module::shui {
     const EXCHANGE_RESERVE:u64 = 100_000_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
+    const AIRDROP_AMOUNT:u64 = 300_000_000;
+
     struct SHUI has drop {}
     struct Global has key {
         id: UID,
         supply: u64,
+
+        // split by balance
         balance_SUI: Balance<SUI>,
         balance_SHUI: Balance<SHUI>,
         creator: address,
@@ -121,7 +125,7 @@ module shui_module::shui {
         transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @exchange_reserve_wallet, EXCHANGE_RESERVE * AMOUNT_DECIMAL, ctx);
-        // transfer_airdrop_reserve(&mut global, @airdrop_reserve_contract, ctx);
+        // transfer_to_reserve(&mut global, @airdrop_reserve_contract, ctx);
         transfer::share_object(global);
     }
 
@@ -302,5 +306,10 @@ module shui_module::shui {
 
     public fun get_swaped_shui(global: &Global) :u64 {
         global.swaped_shui
+    }
+
+    public(friend) fun extract_airdrop_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+        balance::split(&mut global.balance_SHUI, AIRDROP_AMOUNT * AMOUNT_DECIMAL)
     }
 }

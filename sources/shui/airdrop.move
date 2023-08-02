@@ -3,20 +3,19 @@ module shui_module::airdrop {
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
     use shui_module::shui::{Self};
-    use shui_module::metaIdentity::{Self, MetaIdentity};
+    use shui_module::metaIdentity::{Self};
     use sui::clock::{Self, Clock};
+    use sui::coin::{Self};
+    use sui::balance::{Self, Balance};
     use sui::table::{Self};
 
     const ERR_INVALID_PHASE:u64 = 0x001;
     const ERR_NO_PERMISSION:u64 = 0x002;
-    const ERR_NOT_IN_WHITELIST:u64 = 0x003;
     const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
     const ERR_AIRDROP_NOT_START:u64 = 0x005;
     const ERR_HAS_CLAIMED:u64 = 0x006;
     const ERR_INACTIVE_META:u64 = 0x007;
     const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
-
-    const WHITELIST_AIRDROP_AMOUNT:u64 = 10_000;
     const EStillClose: u64 = 1;
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
@@ -25,15 +24,11 @@ module shui_module::airdrop {
         id: UID,
         start: u64,
         creator: address,
+        balance_SHUI: Balance<shui::SHUI>,
 
-        // address -> has claimed the airdrop
-        reserve_claim_records_list: table::Table<address, bool>,
         // address -> last claim time
         daily_claim_records_list: table::Table<address, u64>,
-
         total_claim_amount: u64,
-        culmulate_remain_amount: u64,
-
         now_days: u64,
         total_daily_claim_amount: u64,
     }
@@ -47,10 +42,9 @@ module shui_module::airdrop {
             id: object::new(ctx),
             start: 0,
             creator: tx_context::sender(ctx),
-            reserve_claim_records_list: table::new<address, bool>(ctx),
+            balance_SHUI: balance::zero(),
             daily_claim_records_list: table::new<address, u64>(ctx),
             total_claim_amount: 0,
-            culmulate_remain_amount: 0,
             now_days: 0,
             total_daily_claim_amount: 0,
         };
@@ -59,6 +53,16 @@ module shui_module::airdrop {
             id: object::new(ctx)
         };
         transfer::transfer(time_cap, tx_context::sender(ctx));
+    }
+
+    public fun init_funds_from_main_contract(airdropGlobal: &mut AirdropGlobal, shuiGlobal:&mut shui::Global, ctx: &mut TxContext) {
+        assert!(airdropGlobal.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let balance = shui::extract_airdrop_balance(shuiGlobal, ctx);
+        balance::join(&mut airdropGlobal.balance_SHUI, balance);
+    }
+
+    public entry fun get_total_shui_balance(global: &AirdropGlobal):u64 {
+        balance::value(&global.balance_SHUI)
     }
 
     fun get_per_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
@@ -86,8 +90,7 @@ module shui_module::airdrop {
         table::add(table, recepient, time);
     }
 
-    public entry fun claim_airdrop(info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, global: &mut shui::Global, clock:&Clock, ctx: &mut TxContext) {
-        // metaId check
+    public entry fun claim_airdrop(info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, clock:&Clock, ctx: &mut TxContext) {
         assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
@@ -108,17 +111,10 @@ module shui_module::airdrop {
             last_claim_time = *table::borrow(&info.daily_claim_records_list, user);
         };
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
-        shui::airdrop_claim(global, amount, ctx);
+        let airdrop_balance = balance::split(&mut info.balance_SHUI, amount);
+        let shui = coin::from_balance(airdrop_balance, ctx);
+        transfer::public_transfer(shui, tx_context::sender(ctx));
         record_claim_time(&mut info.daily_claim_records_list, now, user)
-    }
-
-    public entry fun claim_airdrop_whitelist(info:&mut AirdropGlobal, meta: &MetaIdentity, global: &mut shui::Global, ctx: &mut TxContext) {
-        assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
-        assert!(metaIdentity::getMetaId(meta) < 20000, 1);
-        let account = tx_context::sender(ctx);
-        assert!(!table::contains(&info.reserve_claim_records_list, account), ERR_HAS_CLAIMED);
-        shui::airdrop_claim(global, WHITELIST_AIRDROP_AMOUNT * AMOUNT_DECIMAL, ctx);
-        table::add(&mut info.reserve_claim_records_list, account, true);
     }
 
     public entry fun start_timing(info:&mut AirdropGlobal, time_cap: TimeCap, clock_object: &Clock) {
@@ -127,10 +123,6 @@ module shui_module::airdrop {
         object::delete(id);
     }
 
-    public fun get_now(clock:&Clock):u64 {
-        clock::timestamp_ms(clock)
-    }
-    
     public fun get_participator_num(info:&AirdropGlobal) :u64 {
         table::length(&info.daily_claim_records_list)
     }
