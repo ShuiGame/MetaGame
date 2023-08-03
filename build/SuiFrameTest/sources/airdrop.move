@@ -36,6 +36,25 @@ module shui_module::airdrop {
         id: UID,
     }
 
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
+        let global = AirdropGlobal {
+            id: object::new(ctx),
+            start: 0,
+            creator: tx_context::sender(ctx),
+            balance_SHUI: balance::zero(),
+            daily_claim_records_list: table::new<address, u64>(ctx),
+            total_claim_amount: 0,
+            now_days: 0,
+            total_daily_claim_amount: 0,
+        };
+        transfer::share_object(global);
+        let time_cap = TimeCap {
+            id: object::new(ctx)
+        };
+        transfer::transfer(time_cap, tx_context::sender(ctx));
+    }
+
     fun init(ctx: &mut TxContext) {
         let global = AirdropGlobal {
             id: object::new(ctx),

@@ -17,7 +17,6 @@ module shui_module::tree_of_life {
     use std::string;
     use sui::event;
 
-
     const DAY_IN_MS: u64 = 86_400_000;
     const HOUR_IN_MS: u64 = 3_600_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;

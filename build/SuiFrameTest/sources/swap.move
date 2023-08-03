@@ -30,6 +30,20 @@ module shui_module::swap {
         whitelist_table: Table<address, u64>,
     }
 
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
+        let global = SwapGlobal {
+            id: object::new(ctx),
+            creator: tx_context::sender(ctx),
+            balance_SUI: balance::zero(),
+            balance_SHUI: balance::zero(),
+            swaped_shui: 0,
+            swaped_sui: 0,
+            whitelist_table: table::new<address, u64>(ctx)
+        };
+        transfer::share_object(global);
+    }
+
     fun init(ctx: &mut TxContext) {
         let global = SwapGlobal {
             id: object::new(ctx),

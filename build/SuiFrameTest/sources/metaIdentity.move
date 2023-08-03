@@ -71,6 +71,24 @@ module shui_module::metaIdentity {
         register_owner:address
     }
 
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
+        let global = MetaInfoGlobal {
+            id: object::new(ctx),
+            creator:@account,
+            meta_alpha_count: 0,
+            meta_beta_count:0,
+            meta_common_user_count:0,
+            alpha_whitelist:table::new<address, u64>(ctx),
+            beta_whitelist:table::new<address,u64>(ctx),
+            wallet_meta_map:table::new<address, address>(ctx),
+            phone_meta_map:table::new<string::String, address>(ctx),
+            wallet_phone_map:table::new<address, string::String>(ctx),
+            register_owner:@register_manager
+        };
+        transfer::share_object(global);
+    }
+
     fun init(ctx: &mut TxContext) {
         let global = MetaInfoGlobal {
             id: object::new(ctx),

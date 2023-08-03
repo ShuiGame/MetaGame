@@ -13,6 +13,10 @@ module shui_module::shui {
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
 
+    use sui::test_scenario::{
+        Scenario, ctx
+    };
+
     friend shui_module::airdrop;   
     friend shui_module::swap;
     friend shui_module::founder_team_reserve;
@@ -101,6 +105,12 @@ module shui_module::shui {
         transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer::share_object(global);
+    }
+
+    #[test_only]
+    public fun init_for_test(scenario: &mut Scenario) {
+        let witness = SHUI{};
+        init(witness, ctx(scenario));
     }
 
     public fun new_empty_charactor(ctx: &mut TxContext):Inscription {

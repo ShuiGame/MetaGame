@@ -58,6 +58,31 @@ module shui_module::founder_team_reserve {
         id: UID,
     }
 
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
+        let global = FounderTeamGlobal {
+            id: object::new(ctx),
+            first_phase_start: 0,
+            second_phase_start: 0,
+            creator: tx_context::sender(ctx),
+            balance_SHUI: balance::zero(),
+
+            whitelist_founder: table::new<address, u64>(ctx),
+            whitelist_co_founder: table::new<address, u64>(ctx),
+            whitelist_core_members:table::new<address, u64>(ctx),
+            whitelist_tech_team: table::new<address, u64>(ctx),
+            whitelist_promotion: table::new<address, u64>(ctx),
+
+            address_set: table::new<address, u64>(ctx),
+            claim_record: table::new<address, u64>(ctx),
+        };
+        transfer::share_object(global);
+        let time_cap = TimeCap {
+            id: object::new(ctx)
+        };
+        transfer::transfer(time_cap, tx_context::sender(ctx));
+    }
+
     fun init(ctx: &mut TxContext) {
         let global = FounderTeamGlobal {
             id: object::new(ctx),
