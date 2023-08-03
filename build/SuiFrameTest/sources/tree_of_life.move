@@ -149,7 +149,9 @@ module shui_module::tree_of_life {
         };
         vector::destroy_empty(vec);
         assert!(!check_class(&fragment_type), ERR_INVALID_TYPE);
-        items::store_item(get_items(meta), fragment_type, WaterElement {
+        let water_element_name = string::utf8(b"water_element_");
+        string::append(&mut water_element_name, *&fragment_type);
+        items::store_item(get_items(meta), water_element_name, WaterElement {
             class:fragment_type
         });
     }
@@ -165,7 +167,7 @@ module shui_module::tree_of_life {
     }
 
     fun random_ticket(ctx:&mut TxContext): string::String {
-        let num = get_random_num(0, 10000, ctx);
+        let num = get_random_num(0, 10000, 0, ctx);
         let reward_string;
         if (num == 0) {
             reward_string = string::utf8(b"shui_5000");
@@ -198,32 +200,31 @@ module shui_module::tree_of_life {
         array
     }
 
-    fun random_element(meta:&mut MetaIdentity, ctx:&mut TxContext):string::String {
-        let num = get_random_num(0, 30610, ctx);
+    fun receive_random_element(random:u64, meta:&mut MetaIdentity):string::String {
         let reward_string;
         let is_fragment = true;
-        if (num == 0) {
+        if (random == 0) {
             reward_string = string::utf8(b"life");
             is_fragment = false;
-        } else if (num <= 11) {
+        } else if (random <= 11) {
             reward_string = string::utf8(b"memory");
             is_fragment = false;
-        } else if (num <= 111) {
+        } else if (random <= 111) {
             reward_string = string::utf8(b"blood");
             is_fragment = false;
-        } else if (num <= 611) {
+        } else if (random <= 611) {
             reward_string = string::utf8(b"holy");
-        } else if (num <= 1611) {
+        } else if (random <= 1611) {
             reward_string = string::utf8(b"resurrect");
             is_fragment = false;
-        } else if (num <= 4111) {
+        } else if (random <= 4111) {
             reward_string = string::utf8(b"memory");
             is_fragment = false;
-        } else if (num <= 9111) {
+        } else if (random <= 9111) {
             reward_string = string::utf8(b"life");
-        } else if (num <= 14611) {
+        } else if (random <= 14611) {
             reward_string = string::utf8(b"blood");
-        } else if (num <= 21611) {
+        } else if (random <= 21611) {
             reward_string = string::utf8(b"resurrect");
         } else {
             reward_string = string::utf8(b"holy");
@@ -246,8 +247,16 @@ module shui_module::tree_of_life {
 
     public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) {
         let Fruit {} = items::extract_item(get_items(meta), string::utf8(b"fruit"));
-        let reword_element : string::String = random_element(meta, ctx);
-        let reword_ticket: string::String = random_ticket(ctx);
+        let num = get_random_num(0, 30610, 0, ctx);
+        let num_u8 = num % 255;
+        let reword_element : string::String = receive_random_element(num, meta);
+        let double_chance = get_random_num(0, 10, (num_u8 as u8), ctx);
+        if (double_chance < 5) {
+            let reward_element2 = receive_random_element(double_chance, meta);
+            string::append(&mut reword_element, string::utf8(b";"));
+            string::append(&mut reword_element, reward_element2);
+        };
+        let reword_ticket : string::String = random_ticket(ctx);
         event::emit(
             FruitOpened {
                 meta_id: metaIdentity::get_meta_id(meta),
@@ -259,8 +268,8 @@ module shui_module::tree_of_life {
     }
 
     // [min, max]
-    public fun get_random_num(min:u64, max:u64, ctx:&mut TxContext) :u64 {
-        (min + bytes_to_u64(seed(ctx))) % (max + 1)
+    public fun get_random_num(min:u64, max:u64, seed_u:u8, ctx:&mut TxContext) :u64 {
+        (min + bytes_to_u64(seed(ctx, seed_u))) % (max + 1)
     }
 
     fun bytes_to_u64(bytes: vector<u8>): u64 {
@@ -273,13 +282,18 @@ module shui_module::tree_of_life {
         return value
     }
 
-    fun seed(ctx: &mut TxContext): vector<u8> {
+    fun seed(ctx: &mut TxContext, seed_u:u8): vector<u8> {
         let ctx_bytes = bcs::to_bytes(ctx);
+        let seed_vec = vector::empty();
+        vector::push_back(&mut seed_vec, seed_u);
         let uid = object::new(ctx);
         let uid_bytes: vector<u8> = object::uid_to_bytes(&uid);
         object::delete(uid);
         let info: vector<u8> = vector::empty<u8>();
         vector::append<u8>(&mut info, ctx_bytes);
+
+        vector::append<u8>(&mut info, seed_vec);
+
         vector::append<u8>(&mut info, uid_bytes);
         vector::append<u8>(&mut info, bcs::to_bytes(&tx_context::epoch_timestamp_ms(ctx)));
         let hash: vector<u8> = hash::keccak256(&info);

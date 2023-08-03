@@ -151,11 +151,9 @@ module shui_module::airdrop_test {
         // open fruits test
         next_tx(test, test_user);
         {
-            tx_context::increment_epoch_timestamp(ctx(test), 3);
-            let random = tree_of_life::get_random_num(0, 2000, ctx(test));
-            print(&random);
+            tx_context::increment_epoch_timestamp(ctx(test), 4);
             let i = 0;
-            let loop_num = 20;
+            let loop_num = 2;
             let days_min = loop_num * 3;
             print(&string::utf8(b"min_days:"));
             print(&days_min);

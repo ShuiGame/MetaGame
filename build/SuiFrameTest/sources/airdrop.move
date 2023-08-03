@@ -129,6 +129,8 @@ module shui_module::airdrop {
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         let airdrop_balance = balance::split(&mut info.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
+
+        
         transfer::public_transfer(shui, tx_context::sender(ctx));
         record_claim_time(&mut info.daily_claim_records_list, now, user)
     }
