@@ -20,6 +20,7 @@ module shui_module::founder_team_reserve {
     const ERR_RESERVE_IS_lOCKED:u64 = 0x010;
     const ERR_INVALID_TYPE:u64 = 0x011;
     const ERR_ACCOUNT_HAS_BEEN_IN_WHITELIST:u64 = 0x012;
+    const ERR_NOT_IN_WHITELIST:u64 = 0x013;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
@@ -54,7 +55,11 @@ module shui_module::founder_team_reserve {
         claim_record: table::Table<address, u64>,
     }
 
-    struct TimeCap has key {
+    struct TimeCap1 has key {
+        id: UID,
+    }
+
+    struct TimeCap2 has key {
         id: UID,
     }
 
@@ -77,10 +82,14 @@ module shui_module::founder_team_reserve {
             claim_record: table::new<address, u64>(ctx),
         };
         transfer::share_object(global);
-        let time_cap = TimeCap {
+        let time_cap1 = TimeCap1 {
             id: object::new(ctx)
         };
-        transfer::transfer(time_cap, tx_context::sender(ctx));
+        let time_cap2 = TimeCap2 {
+            id: object::new(ctx)
+        };
+        transfer::transfer(time_cap1, tx_context::sender(ctx));
+        transfer::transfer(time_cap2, tx_context::sender(ctx));
     }
 
     fun init(ctx: &mut TxContext) {
@@ -101,10 +110,14 @@ module shui_module::founder_team_reserve {
             claim_record: table::new<address, u64>(ctx),
         };
         transfer::share_object(global);
-        let time_cap = TimeCap {
+        let time_cap1 = TimeCap1 {
             id: object::new(ctx)
         };
-        transfer::transfer(time_cap, tx_context::sender(ctx));
+        let time_cap2 = TimeCap2 {
+            id: object::new(ctx)
+        };
+        transfer::transfer(time_cap1, tx_context::sender(ctx));
+        transfer::transfer(time_cap2, tx_context::sender(ctx));
     }
 
     public fun init_funds_from_main_contract(global: &mut FounderTeamGlobal, shuiGlobal:&mut shui::Global, ctx: &mut TxContext) {
@@ -117,15 +130,15 @@ module shui_module::founder_team_reserve {
         balance::value(&global.balance_SHUI)
     }
 
-    public entry fun start_phase1(global:&mut FounderTeamGlobal, time_cap: TimeCap, clock_object: &Clock) {
+    public entry fun start_phase1(global:&mut FounderTeamGlobal, time_cap: TimeCap1, clock_object: &Clock) {
         global.first_phase_start = clock::timestamp_ms(clock_object);
-        let TimeCap { id } = time_cap;
+        let TimeCap1 { id } = time_cap;
         object::delete(id);
     }
 
-    public entry fun start_phase2(global:&mut FounderTeamGlobal, time_cap: TimeCap, clock_object: &Clock) {
+    public entry fun start_phase2(global:&mut FounderTeamGlobal, time_cap: TimeCap2, clock_object: &Clock) {
         global.second_phase_start = clock::timestamp_ms(clock_object);
-        let TimeCap { id } = time_cap;
+        let TimeCap2 { id } = time_cap;
         object::delete(id);
     }
 
@@ -236,7 +249,7 @@ module shui_module::founder_team_reserve {
         reseve_per_amount * num_months / 10 / 2
     }
 
-    public entry fun claim_reserve(global: &mut FounderTeamGlobal, clock:&Clock, type:u64, phase:u64, ctx: &mut TxContext) {
+    public entry fun claim_reserve(global: &mut FounderTeamGlobal, clock:&Clock, type:u64, phase:u64, ctx: &mut TxContext):u64 {
         assert!(phase == 1 || phase == 2, ERR_INVALID_PHASE);
         if (phase == 1) {
             assert!(global.first_phase_start > 0, ERR_RESERVE_IS_lOCKED);
@@ -249,13 +262,20 @@ module shui_module::founder_team_reserve {
             claimed = *table::borrow(&global.claim_record, account);
         };
         let reserve = get_unlock_reserve_amount(global, type, phase, clock);
+        assert!(is_in_whitelist(global, type, account), ERR_NOT_IN_WHITELIST);
+        assert!(reserve > 0, ERR_NO_PERMISSION);
         if (reserve - claimed > 0) {
             let airdrop_balance = balance::split(&mut global.balance_SHUI, (reserve - claimed) * AMOUNT_DECIMAL);
             let shui = coin::from_balance(airdrop_balance, ctx);
             transfer::public_transfer(shui, tx_context::sender(ctx));
-            let claimed_value = table::borrow_mut(&mut global.claim_record, account);
-            *claimed_value = reserve
-        }
+            if (table::contains(&mut global.claim_record, account)) {
+                let claimed_value = table::borrow_mut(&mut global.claim_record, account);
+                *claimed_value = reserve;
+            } else {
+                table::add(&mut global.claim_record, account, reserve);
+            }
+        };
+        reserve - claimed
     }
 
     public fun is_in_whitelist(global:&mut FounderTeamGlobal, type:u64, account:address) : bool {

@@ -64,6 +64,11 @@ module shui_module::airdrop_test {
         pay::keep(coin, ctx(test));
     }
 
+    // fun print_ids(test: &Scenario) {
+    //     let ids = ids_for_sender<Coin<shui::SHUI>>(test);
+    //     print(&ids);
+    // }
+
     #[test]
     fun test_init() {
         let scenario = scenario();
@@ -86,12 +91,20 @@ module shui_module::airdrop_test {
         // funds split
         next_tx(test, admin);
         {
-            let airdropGlobal = take_shared<airdrop::AirdropGlobal>(test);
             let shuiGlobal = take_shared<shui::Global>(test);
+
+            let airdropGlobal = take_shared<airdrop::AirdropGlobal>(test);
+            let reserveGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
+            let swapGlobal = take_shared<swap::SwapGlobal>(test);
+
             airdrop::init_funds_from_main_contract(&mut airdropGlobal, &mut shuiGlobal, ctx(test));
-            airdrop::init_funds_from_main_contract(&mut airdropGlobal, &mut shuiGlobal, ctx(test));
-            return_shared(airdropGlobal);
+            founder_team_reserve::init_funds_from_main_contract(&mut reserveGlobal, &mut shuiGlobal, ctx(test));
+            swap::init_funds_from_main_contract(&mut swapGlobal, &mut shuiGlobal, ctx(test));
+
             return_shared(shuiGlobal);
+            return_shared(airdropGlobal);
+            return_shared(reserveGlobal);
+            return_shared(swapGlobal);
         };
         
         // register meta
@@ -124,6 +137,12 @@ module shui_module::airdrop_test {
         // airdrop test
         next_tx(test, test_user);
         {
+            let airdropGlobal = take_shared<airdrop::AirdropGlobal>(test);
+            let value = airdrop::get_total_shui_balance(&mut airdropGlobal);
+            print(&string::utf8(b"airdrop pool:"));
+            print(&value);
+            return_shared(airdropGlobal);
+            next_epoch(test, test_user);
             clock::increment_for_testing(&mut clock, 1 * DAY_IN_MS);
             let i = 0;
             while (i < 100) {
@@ -153,7 +172,7 @@ module shui_module::airdrop_test {
         {
             tx_context::increment_epoch_timestamp(ctx(test), 4);
             let i = 0;
-            let loop_num = 2;
+            let loop_num = 12;
             let days_min = loop_num * 3;
             print(&string::utf8(b"min_days:"));
             print(&days_min);
@@ -166,6 +185,65 @@ module shui_module::airdrop_test {
                 next_epoch(test, test_user);
             };
             print_items(test);
+        };
+
+        // synthesis test
+        next_tx(test, test_user);
+        {
+            // let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            // tree_of_life::swap_fragment<tree_of_life::Fragment>(&mut meta, string::utf8(b"holy"));
+            // return_to_sender(test, meta);
+            // next_epoch(test, test_user);
+            // print_items(test);
+        };
+
+        // founder_team_reserve start
+        next_tx(test, admin);
+        {
+            let founderTeamGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
+            let time_cap = take_from_sender<founder_team_reserve::TimeCap1>(test);
+            founder_team_reserve::start_phase1(&mut founderTeamGlobal, time_cap, &clock);
+            tx_context::increment_epoch_timestamp(ctx(test), 1);
+            return_shared(founderTeamGlobal);
+        };
+
+        // set whitelist
+        next_tx(test, admin);
+        {
+            let type = 0;
+            let founderTeamGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
+            let value = founder_team_reserve::get_total_shui_balance(&mut founderTeamGlobal);
+            print(&string::utf8(b"reserve pool:"));
+            print(&value);
+            let whitelist = vector::empty();
+            vector::push_back(&mut whitelist, test_user);
+            founder_team_reserve::set_white_lists(&mut founderTeamGlobal, whitelist, type, ctx(test));
+            return_shared(founderTeamGlobal);
+            next_epoch(test, admin);
+        };
+
+        // reserve claim test
+        clock::increment_for_testing(&mut clock, 1 * HOUR_IN_MS);
+        next_tx(test, test_user);
+        {
+            let type = 0;
+            let phase = 1;
+            let founderTeamGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
+            let cliamed = founder_team_reserve::claim_reserve(&mut founderTeamGlobal, &clock, type, phase, ctx(test));
+            print(&cliamed);
+            return_shared(founderTeamGlobal);
+        };
+
+        // reserve claim test2
+        clock::increment_for_testing(&mut clock, 30 * DAY_IN_MS + 1);
+        next_tx(test, test_user);
+        {
+            let type = 0;
+            let phase = 1;
+            let founderTeamGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
+            let cliamed = founder_team_reserve::claim_reserve(&mut founderTeamGlobal, &clock, type, phase, ctx(test));
+            print(&cliamed);
+            return_shared(founderTeamGlobal);
         };
 
         clock::destroy_for_testing(clock);

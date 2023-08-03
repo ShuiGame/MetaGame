@@ -103,6 +103,10 @@ module shui_module::items {
 
     fun set_items_num(linked_table: &mut linked_table::LinkedTable<string::String, u16>, name:string::String, num:u16) {
         if (linked_table::contains(linked_table, name)) {
+            if (num == 0) {
+                linked_table::remove(linked_table, name);
+                return
+            };
             let num_m = linked_table::borrow_mut(linked_table, name);
             *num_m = num;
         } else {

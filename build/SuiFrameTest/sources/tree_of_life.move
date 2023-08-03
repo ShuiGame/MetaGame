@@ -140,15 +140,18 @@ module shui_module::tree_of_life {
     }
 
     public entry fun swap_fragment<T:store + drop>(meta:&mut MetaIdentity, fragment_type:string::String) {
+        assert!(check_class(&fragment_type), ERR_INVALID_TYPE);
         let items = get_items(meta);
-        let vec:vector<T> = items::extract_items(items, fragment_type, 10);
+        let fragment_name = string::utf8(b"fragment_");
+        string::append(&mut fragment_name, fragment_type);
+        let vec:vector<T> = items::extract_items(items, fragment_name, 10);
         let (i, len) = (0u64, vector::length(&vec));
         while (i < len) {
             // drop fragments
             vector::pop_back(&mut vec);
+            i = i + 1;
         };
         vector::destroy_empty(vec);
-        assert!(!check_class(&fragment_type), ERR_INVALID_TYPE);
         let water_element_name = string::utf8(b"water_element_");
         string::append(&mut water_element_name, *&fragment_type);
         items::store_item(get_items(meta), water_element_name, WaterElement {
