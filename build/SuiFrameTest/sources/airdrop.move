@@ -129,7 +129,6 @@ module shui_module::airdrop {
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         let airdrop_balance = balance::split(&mut info.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
-
         
         transfer::public_transfer(shui, tx_context::sender(ctx));
         record_claim_time(&mut info.daily_claim_records_list, now, user)
@@ -156,6 +155,12 @@ module shui_module::airdrop {
 
     public entry fun get_total_daily_claim_amount(info: &AirdropGlobal):u64 {
         info.total_daily_claim_amount
+    }
+
+    public entry fun get_airdrop_diff_time(info: &AirdropGlobal, clock:&Clock, wallet_addr:address):u64 {
+        let now = clock::timestamp_ms(clock);
+        let last_claim_time = *table::borrow(&info.daily_claim_records_list, wallet_addr);
+        now - last_claim_time
     }
 
     public entry fun get_daily_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
