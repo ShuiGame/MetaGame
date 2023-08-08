@@ -14,15 +14,23 @@ module shui_module::swap {
     const ERR_EXCEED_SWAP_LIMIT:u64 = 0x002;
     const ERR_NOT_IN_WHITELIST:u64 = 0x003;
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x004;
+    const ERR_NOT_START:u64 = 0x005;
+    const ERR_INVALID_PHASE:u64 = 0x006;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const WHITELIST_SWAP_LIMIT:u64 = 10_000;
     const WHITELIST_MAX_NUM:u64 = 10_000;
 
+    const RATIO_NFT:u64 = 100;
+    const RATIO_ORIGIN:u64 = 10;
+    const RATIO_ANGLE:u64 = 5;
+    const RATIO_RESERVE:u64 = 1;
+
     struct SwapGlobal has key {
         id: UID,
         creator: address,
+        phase:u64,
         balance_SUI: Balance<SUI>,
         balance_SHUI: Balance<shui::SHUI>,
         swaped_shui: u64,
@@ -35,6 +43,7 @@ module shui_module::swap {
         let global = SwapGlobal {
             id: object::new(ctx),
             creator: tx_context::sender(ctx),
+            phase:0,
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
             swaped_shui: 0,
@@ -44,10 +53,16 @@ module shui_module::swap {
         transfer::share_object(global);
     }
 
+    public fun set_Phase(global:&mut SwapGlobal, phase:u64) {
+        assert!(phase == (global.phase + 1), ERR_INVALID_PHASE);
+        global.phase = phase;
+    }
+
     fun init(ctx: &mut TxContext) {
         let global = SwapGlobal {
             id: object::new(ctx),
             creator: tx_context::sender(ctx),
+            phase:0,
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
             swaped_shui: 0,
@@ -81,7 +96,15 @@ module shui_module::swap {
     }
 
     public entry fun public_swap<T> (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
-        let ratio = 10;
+        assert!(global.phase >= 1, ERR_NOT_START);
+        let ratio;
+        if (global.phase == 1) {
+            ratio = 10;
+        } else if (global.phase == 2) {
+            ratio = 5;
+        } else {
+            ratio = 1;
+        };
         let recepient = tx_context::sender(ctx);
         let shui_to_be_swap:u64 = sui_pay_amount * ratio;
         global.swaped_shui = global.swaped_shui + shui_to_be_swap * AMOUNT_DECIMAL;
@@ -148,6 +171,10 @@ module shui_module::swap {
 
     public entry fun get_total_shui_balance(global: &SwapGlobal):u64 {
         balance::value(&global.balance_SHUI)
+    }
+
+    public entry fun get_phase(global: &SwapGlobal): u64 {
+        global.phase
     }
 
     public entry fun get_total_sui_balance(global: &SwapGlobal):u64 {

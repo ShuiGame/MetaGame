@@ -12,15 +12,15 @@ compiled_package_info:
     shui_module: "0000000000000000000000000000000000000000000000000000000000000000"
     std: "0000000000000000000000000000000000000000000000000000000000000001"
     sui: "0000000000000000000000000000000000000000000000000000000000000002"
-  source_digest: DB75F156956322DE8688310184CFE40782D8D9620720E7A4755E21926D473B6B
+  source_digest: 93D0E895973A7721E1D9DE251513AB6A30C30A6C0EB861A9D105DB2AD4E8205E
   build_flags:
-    dev_mode: true
-    test_mode: true
+    dev_mode: false
+    test_mode: false
     generate_docs: false
     generate_abis: false
     install_dir: ~
     force_recompilation: false
-    lock_file: ~
+    lock_file: ".\\Move.lock"
     additional_named_addresses: {}
     fetch_deps_only: false
     skip_fetch_latest_git_deps: true

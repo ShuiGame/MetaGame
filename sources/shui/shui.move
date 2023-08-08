@@ -13,6 +13,7 @@ module shui_module::shui {
     use shui_module::gift::{Self};
     use shui_module::avatar::{Self};
 
+    #[test_only]
     use sui::test_scenario::{
         Scenario, ctx
     };
@@ -47,13 +48,13 @@ module shui_module::shui {
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
     const FOUNDATION_RESERVE:u64 = 50_000_000;
     const DAO_RESERVE:u64 = 50_000_000;
-    const GAME_RESERVE:u64 = 1_379_000_000;
+    const GAME_RESERVE:u64 = 1_300_000_000;
     const FOUNDER_TEAM_RESERVE:u64 = 21_000_000;
 
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
     const AIRDROP_AMOUNT:u64 = 300_000_000;
-    const SWAP_AMOUNT:u64 = 300_000_000;
+    const SWAP_AMOUNT:u64 = 379_000_000;
 
     struct SHUI has drop {}
 
@@ -102,7 +103,6 @@ module shui_module::shui {
 
         // transfer ther reserve shui to dao and foundation account;
         transfer_to_reserve(&mut global, @game_reserve_wallet, GAME_RESERVE * AMOUNT_DECIMAL, ctx);
-        transfer_to_reserve(&mut global, @foundation_reserve_wallet, FOUNDATION_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer_to_reserve(&mut global, @dao_reserve_wallet, DAO_RESERVE * AMOUNT_DECIMAL, ctx);
         transfer::share_object(global);
     }
@@ -162,6 +162,7 @@ module shui_module::shui {
         balance::split(&mut global.balance_SHUI, AIRDROP_AMOUNT * AMOUNT_DECIMAL)
     }
 
+    // todo: only once call
     public(friend) fun extract_swap_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
         assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
         balance::split(&mut global.balance_SHUI, SWAP_AMOUNT * AMOUNT_DECIMAL)
