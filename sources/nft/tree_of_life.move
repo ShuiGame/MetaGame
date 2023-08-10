@@ -124,18 +124,18 @@ module shui_module::tree_of_life {
         };
 
         // record the time and exp
-        if (table::contains(&global.water_down_person_exp_records, sender)) {
-            let last_exp = *table::borrow(&global.water_down_person_exp_records, sender);
+        if (table::contains(&global.water_down_person_exp_records, &meta.id)) {
+            let last_exp = *table::borrow(&global.water_down_person_exp_records, &meta.id);
             if (last_exp == 9) {
                 items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
-                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, sender);
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, &meta.id);
                 *exp = 0;
             } else {
-                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, sender);
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, &meta.id);
                 *exp = *exp + 1;
             }
         } else {
-            table::add(&mut global.water_down_person_exp_records, sender, 1);
+            table::add(&mut global.water_down_person_exp_records, &meta.id, 1);
         };
     }
 
@@ -303,9 +303,9 @@ module shui_module::tree_of_life {
         hash
     }
 
-    public fun get_water_down_person_exp(global: &TreeGlobal, wallet_addr:address) :u64 {
-        if (table::contains(&global.water_down_person_exp_records, wallet_addr)) {
-            *table::borrow(&global.water_down_person_exp_records, wallet_addr)
+    public fun get_water_down_person_exp(global: &TreeGlobal, meta_id:address) :u64 {
+        if (table::contains(&global.water_down_person_exp_records, meta_id)) {
+            *table::borrow(&global.water_down_person_exp_records, meta_id)
         } else {
             0
         }

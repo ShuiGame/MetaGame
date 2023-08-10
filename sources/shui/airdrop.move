@@ -159,8 +159,12 @@ module shui_module::airdrop {
 
     public entry fun get_airdrop_diff_time(info: &AirdropGlobal, clock:&Clock, wallet_addr:address):u64 {
         let now = clock::timestamp_ms(clock);
-        let last_claim_time = *table::borrow(&info.daily_claim_records_list, wallet_addr);
-        now - last_claim_time
+        if table::contains(&info.daily_claim_records_list, wallet_addr) {
+            let last_claim_time = *table::borrow(&info.daily_claim_records_list, wallet_addr);
+            now - last_claim_time
+        } else {
+            -1
+        }
     }
 
     public entry fun get_daily_remain_amount(clock:&Clock, info: &AirdropGlobal):u64 {
