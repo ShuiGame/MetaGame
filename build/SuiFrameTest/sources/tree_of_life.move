@@ -19,6 +19,7 @@ module shui_module::tree_of_life {
 
     const DAY_IN_MS: u64 = 86_400_000;
     const HOUR_IN_MS: u64 = 3_600_000;
+    const MIN_IN_MILLS: u64 = 60_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
     const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
@@ -72,8 +73,8 @@ module shui_module::tree_of_life {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
             creator: tx_context::sender(ctx),
-            water_down_last_time_records: table::new<address, u64>(ctx),
-            water_down_person_exp_records: table::new<address, u64>(ctx),
+            water_down_last_time_records: table::new<u64, u64>(ctx),
+            water_down_person_exp_records: table::new<u64, u64>(ctx),
         };
         transfer::share_object(global);
     }
@@ -84,7 +85,7 @@ module shui_module::tree_of_life {
             balance_SHUI: balance::zero(),
             creator: tx_context::sender(ctx),
             water_down_last_time_records: table::new<u64, u64>(ctx),
-            water_down_person_exp_records: table::new<ur64, u64>(ctx),
+            water_down_person_exp_records: table::new<u64, u64>(ctx),
         };
         transfer::share_object(global);
     }
@@ -98,14 +99,13 @@ module shui_module::tree_of_life {
         transfer::public_transfer(tree, tx_context::sender(ctx));
     }
 
-    public entry fun water_down(global: &mut TreeGlobal, meta:&MetaIdentity, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
+    public entry fun water_down(global: &mut TreeGlobal, meta:&mut MetaIdentity, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
         // interval time should be greater than 1 days
         let amount = 1;
-        let sender = tx_context::sender(ctx);
         let now = clock::timestamp_ms(clock);
         if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
             let lastWaterDownTime = table::borrow_mut(&mut global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
-            assert!((now - *lastWaterDownTime) > 8 * HOUR_IN_MS, ERR_INTERVAL_TIME_ONE_DAY);
+            assert!((now - *lastWaterDownTime) > 8 * MIN_IN_MILLS, ERR_INTERVAL_TIME_ONE_DAY);
             *lastWaterDownTime = now;
         } else {
             table::add(&mut global.water_down_last_time_records, metaIdentity::get_meta_id(meta), now);
@@ -126,7 +126,7 @@ module shui_module::tree_of_life {
         // record the time and exp
         if (table::contains(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))) {
             let last_exp = *table::borrow(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
-            if (last_exp == 9) {
+            if (last_exp == 2) {
                 items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
                 let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
                 *exp = 0;
@@ -303,19 +303,19 @@ module shui_module::tree_of_life {
         hash
     }
 
-    public fun get_water_down_person_exp(global: &TreeGlobal, meta_id: address) :u64 {
-        if (table::contains(&global.water_down_person_exp_records, meta_id)) {
-            *table::borrow(&global.water_down_person_exp_records, meta_id)
+    public fun get_water_down_person_exp(global: &TreeGlobal, meta:&MetaIdentity) :u64 {
+        if (table::contains(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))) {
+            *table::borrow(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))
         } else {
             0
         }
     }
 
-    public fun get_water_down_left_time_mills(global: &TreeGlobal, wallet_addr:address, clock: &Clock) : u64 {
+    public fun get_water_down_left_time_mills(global: &TreeGlobal, meta:&MetaIdentity, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let last_time = 0;
-        if (table::contains(&global.water_down_last_time_records, wallet_addr)) {
-            last_time = *table::borrow(&global.water_down_last_time_records, wallet_addr);
+        if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
+            last_time = *table::borrow(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
         };
         let next_time = last_time + 8 * HOUR_IN_MS;
         if (now > next_time) {
