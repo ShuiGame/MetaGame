@@ -311,11 +311,11 @@ module shui_module::tree_of_life {
         }
     }
 
-    public fun get_water_down_left_time_mills(global: &TreeGlobal, wallet_addr:address, clock: &Clock) : u64 {
+    public fun get_water_down_left_time_mills(global: &TreeGlobal, meta:&MetaIdentity, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let last_time = 0;
-        if (table::contains(&global.water_down_last_time_records, wallet_addr)) {
-            last_time = *table::borrow(&global.water_down_last_time_records, wallet_addr);
+        if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
+            last_time = *table::borrow(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
         };
         let next_time = last_time + 8 * HOUR_IN_MS;
         if (now > next_time) {
