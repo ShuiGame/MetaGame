@@ -51,17 +51,13 @@ module shui_module::tree_of_life {
         ticket_reward: string::String,
     }
 
-    struct TicketOpen has copy, drop {
-        meta_id: u64,
-        amount: u64
-    }
-
     struct WaterElement has store, drop {
         class:string::String
     }
 
     struct Fragment has store, drop {
-        class:string::String
+        class:string::String, 
+        desc:string::String
     }
 
     struct Fruit has store {}
@@ -154,6 +150,7 @@ module shui_module::tree_of_life {
         vector::destroy_empty(vec);
         let water_element_name = string::utf8(b"water_element_");
         string::append(&mut water_element_name, *&fragment_type);
+        // todo：搞一个按类获取描述的方法吧，不然太麻烦了
         items::store_item(get_items(meta), water_element_name, WaterElement {
             class:fragment_type
         });
@@ -190,13 +187,14 @@ module shui_module::tree_of_life {
         reward_string
     }
 
-    fun create_fragments_by_class(loop_num:u64, type:string::String) : vector<Fragment> {
+    fun create_fragments_by_class(loop_num:u64, type:string::String, desc_str:string::String) : vector<Fragment> {
         assert!(check_class(&type), ERR_INVALID_TYPE);
         let array = vector::empty();
         let i = 0;
         while (i < loop_num) {
-            vector::push_back(&mut array, Fragment{
-                class:type
+            vector::push_back(&mut array, Fragment {
+                class:type,
+                desc:desc_str
             });
             i = i + 1;
         };
@@ -205,44 +203,56 @@ module shui_module::tree_of_life {
 
     fun receive_random_element(random:u64, meta:&mut MetaIdentity):string::String {
         let reward_string;
+        let desc_string;
         let is_fragment = true;
         if (random == 0) {
             reward_string = string::utf8(b"life");
+            desc_string = string::utf8(b"生命之水元素");
             is_fragment = false;
         } else if (random <= 11) {
             reward_string = string::utf8(b"memory");
+            desc_string = string::utf8(b"记忆之水元素");
             is_fragment = false;
         } else if (random <= 111) {
             reward_string = string::utf8(b"blood");
+            desc_string = string::utf8(b"血脉之力元素");
             is_fragment = false;
         } else if (random <= 611) {
             reward_string = string::utf8(b"holy");
+            desc_string = string::utf8(b"神圣之力元素碎片, 集齐10片可合成神圣之力水元素");
         } else if (random <= 1611) {
             reward_string = string::utf8(b"resurrect");
+            desc_string = string::utf8(b"重生之力元素");    
             is_fragment = false;
         } else if (random <= 4111) {
             reward_string = string::utf8(b"memory");
+            desc_string = string::utf8(b"记忆之水元素"); 
             is_fragment = false;
         } else if (random <= 9111) {
             reward_string = string::utf8(b"life");
+            desc_string = string::utf8(b"生命之水元素碎片, 集齐10片可合成生命之水元素");
         } else if (random <= 14611) {
             reward_string = string::utf8(b"blood");
+            desc_string = string::utf8(b"血脉之力元素碎片, 集齐10片可合成血脉之力元素");
         } else if (random <= 21611) {
             reward_string = string::utf8(b"resurrect");
+            desc_string = string::utf8(b"重生之水元素碎片, 集齐10片可合成重生之水元素");
         } else {
             reward_string = string::utf8(b"holy");
+            desc_string = string::utf8(b"神圣之水元素碎片, 集齐10片可合成神圣之水元素");
         };
         if (is_fragment) {
             let name = string::utf8(b"fragment_");
             string::append(&mut name, *&reward_string);
-            let array = create_fragments_by_class(5, *&reward_string);
+            let array = create_fragments_by_class(5, *&reward_string, *&desc_str);
             items::store_items(get_items(meta), name, array);
             name
         } else {
             let name = string::utf8(b"water_element_");
             string::append(&mut name, *&reward_string);
-            items::store_item(get_items(meta), name, WaterElement{
-                class:reward_string
+            items::store_item(get_items(meta), name, WaterElement {
+                class:reward_string,
+                desc:desc_string
             });
             name
         }

@@ -95,7 +95,7 @@ module shui_module::swap {
         assert!(table::length(&swapGlobal.whitelist_table) <= WHITELIST_MAX_NUM, 1);
     }
 
-    public entry fun gold_reserve_swap<T> (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+    public entry fun gold_reserve_swap (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let ratio = 1;
         let recepient = tx_context::sender(ctx);
         let shui_to_be_swap:u64 = sui_pay_amount * ratio;
@@ -119,7 +119,7 @@ module shui_module::swap {
         transfer::public_transfer(shui, recepient);
     }
 
-    public entry fun public_swap<T> (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+    public entry fun public_swap (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         assert!(global.phase == 1, ERR_NOT_START);
         let ratio = 10;
         let recepient = tx_context::sender(ctx);
@@ -144,7 +144,7 @@ module shui_module::swap {
         transfer::public_transfer(shui, recepient);
     }
 
-    public entry fun white_list_swap<T> (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+    public entry fun white_list_swap (global: &mut SwapGlobal, sui_pay_amount:u64, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let ratio = 100;
         let limit = WHITELIST_SWAP_LIMIT;
         let recepient = tx_context::sender(ctx);

@@ -51,11 +51,6 @@ module shui_module::tree_of_life {
         ticket_reward: string::String,
     }
 
-    struct TicketOpen has copy, drop {
-        meta_id: u64,
-        amount: u64
-    }
-
     struct WaterElement has store, drop {
         class:string::String
     }
