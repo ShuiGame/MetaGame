@@ -164,7 +164,7 @@ module shui_module::airdrop_test {
                 next_epoch(test, test_user);
                 i = i + 1;
             };
-            // print_items(test);
+            print_items(test);
         };
 
         // open fruits test
