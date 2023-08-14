@@ -39,7 +39,7 @@ module shui_module::items {
             id: object::new(ctx),
             desc_table: table::new<string::String, string::String>(ctx)
         };
-        init_water_items_desc(&mut global);
+        init_items_desc(&mut global);
         transfer::share_object(global);
     }
 
@@ -48,11 +48,14 @@ module shui_module::items {
             id: object::new(ctx),
             desc_table: table::new<string::String, string::String>(ctx)
         };
-        init_water_items_desc(&mut global);
+        init_items_desc(&mut global);
         transfer::share_object(global);
     }
 
-    fun init_water_items_desc(global:&mut ItemGlobal) {
+    fun init_items_desc(global:&mut ItemGlobal) {
+        // fruit
+        table::add(&mut global.desc_table, string::utf8(b"fruit"), string::utf8(b"fruit desc"));
+
         // water element
         table::add(&mut global.desc_table, string::utf8(b"water_element_holy"), string::utf8(b"holy water element desc"));
         table::add(&mut global.desc_table, string::utf8(b"water_element_blood"), string::utf8(b"blood water element desc"));
