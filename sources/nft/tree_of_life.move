@@ -48,7 +48,6 @@ module shui_module::tree_of_life {
         meta_id: u64,
         name: string::String,
         element_reward: string::String,
-        ticket_reward: string::String,
     }
 
     struct WaterElement has store, drop {
@@ -282,6 +281,7 @@ module shui_module::tree_of_life {
         if (is_fragment) {
             let name = string::utf8(b"fragment_");
             string::append(&mut name, *&reward_string);
+            string::append(&mut name, string::utf8(b":5"));
             let array = create_fragments_by_class(5, *&reward_string, *&get_name_by_type(reward_string, true), *&get_desc_by_type(reward_string, true));
             items::store_items(get_items(meta), name, array);
             name
@@ -309,12 +309,13 @@ module shui_module::tree_of_life {
             string::append(&mut reword_element, reward_element2);
         };
         let reword_ticket : string::String = random_ticket(ctx);
+        string::append(&mut reword_element, string::utf8(b";"));
+        string::append(&mut reword_element, reword_ticket);
         event::emit(
             FruitOpened {
                 meta_id: metaIdentity::get_meta_id(meta),
                 name: metaIdentity::get_meta_name(meta),
                 element_reward: reword_element,
-                ticket_reward: reword_ticket
             }
         );
         reword_element
