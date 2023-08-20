@@ -297,7 +297,7 @@ module shui_module::tree_of_life {
         }
     }
 
-    public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) {
+    public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) :string::String {
         let Fruit {} = items::extract_item(get_items(meta), string::utf8(b"fruit"));
         let num = get_random_num(0, 30610, 0, ctx);
         let num_u8 = num % 255;
@@ -317,6 +317,7 @@ module shui_module::tree_of_life {
                 ticket_reward: reword_ticket
             }
         );
+        reword_element
     }
 
     // [min, max]

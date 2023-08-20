@@ -164,9 +164,12 @@ module shui_module::items {
 
     public(friend) fun get_items_info(itemGlobal:&ItemGlobal, items: &Items) : string::String {
         // :
-        let byte_coma = ascii::byte(ascii::char(58));
+        let byte_colon = ascii::byte(ascii::char(58));
         // ;
         let byte_semi = ascii::byte(ascii::char(59));
+        // ,
+        let byte_comma = ascii::byte(ascii::char(44));
+
         let table: &linked_table::LinkedTable<string::String, u16> = &items.link_table;
         if (linked_table::is_empty(table)) {
             return string::utf8(b"none")
@@ -177,10 +180,10 @@ module shui_module::items {
 
         // name:num,desc;
         vector::append(&mut vec_out, *string::bytes(&key_value));
-        vector::push_back(&mut vec_out, byte_coma);
+        vector::push_back(&mut vec_out, byte_colon);
         let val_str = linked_table::borrow(table, key_value);
         vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
-        vector::push_back(&mut vec_out, byte_coma);
+        vector::push_back(&mut vec_out, byte_comma);
         let desc_str = get_desc_by_name(itemGlobal, key_value);
         vector::append(&mut vec_out, *string::bytes(&desc_str));
         vector::push_back(&mut vec_out, byte_semi);
@@ -189,11 +192,11 @@ module shui_module::items {
         while (option::is_some(next)) {
             let key_value = *option::borrow(next);
             vector::append(&mut vec_out, *string::bytes(&key_value));
-            vector::push_back(&mut vec_out, byte_coma);
+            vector::push_back(&mut vec_out, byte_colon);
 
             let val_str = linked_table::borrow(table, key_value);
             vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
-            vector::push_back(&mut vec_out, byte_coma);
+            vector::push_back(&mut vec_out, byte_comma);
             let desc_str = get_desc_by_name(itemGlobal, key_value);
             vector::append(&mut vec_out, *string::bytes(&desc_str));
             vector::push_back(&mut vec_out, byte_semi);

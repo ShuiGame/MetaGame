@@ -12,6 +12,7 @@ module shui_module::airdrop_test {
     };
     use sui::tx_context;
     use sui::pay;
+    use shui_module::items::{Self};
     use shui_module::shui::{Self};
     use shui_module::metaIdentity::{Self};
     use shui_module::airdrop::{Self};
@@ -49,9 +50,9 @@ module shui_module::airdrop_test {
         return_shared(treeGlobal);
     }
 
-    fun print_items(test: &mut Scenario) {
+    fun print_items(itemGlobal: &items::ItemGlobal, test: &mut Scenario) {
         let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-        let items_info = metaIdentity::get_items_info(&meta);
+        let items_info = metaIdentity::get_items_info(&meta, itemGlobal);
         print(&items_info);
         return_to_sender(test, meta);
     }
@@ -86,6 +87,7 @@ module shui_module::airdrop_test {
             swap::init_for_test(ctx(test));
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
+            items::init_for_test(ctx(test));
         };
 
         // funds split
@@ -157,6 +159,7 @@ module shui_module::airdrop_test {
         // water down test
         next_tx(test, test_user);
         {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
             let i = 0;
             while (i < 200) {
                 clock::increment_for_testing(&mut clock, 8 * HOUR_IN_MS + 1);
@@ -164,12 +167,14 @@ module shui_module::airdrop_test {
                 next_epoch(test, test_user);
                 i = i + 1;
             };
-            print_items(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
         };
 
         // open fruits test
         next_tx(test, test_user);
         {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
             tx_context::increment_epoch_timestamp(ctx(test), 4);
             let i = 0;
             let loop_num = 12;
@@ -184,7 +189,8 @@ module shui_module::airdrop_test {
                 i = i + 1;
                 next_epoch(test, test_user);
             };
-            print_items(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
         };
 
         // synthesis test
