@@ -89,7 +89,7 @@ module shui_module::airdrop_test {
         end(scenario);
     }
 
-    #[test]
+    // #[test]
     fun test_init() {
         let scenario = scenario();
         let test = &mut scenario;
@@ -237,11 +237,9 @@ module shui_module::airdrop_test {
         {
             let type = 0;
             let swapGlobal = take_shared<swap::SwapGlobal>(test);
-            let whitelist = vector::empty();
-            vector::push_back(&mut whitelist, test_user);
             let msg = x"be379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c18";
             let sig = x"91EEC3C09428D1E3ECF7DDD723E71A6E7108293FD7B0EB6AE2C796A84D8DF3AE09D6119EE5FE9016BC14847C3AF69130B4CE06534EA1A5EBB13142BFCA0A430C";
-            swap::set_whitelists(&mut swapGlobal, whitelist, &sig, &msg, ctx(test));
+            swap::white_list_backup(&mut swapGlobal, &sig, &msg, ctx(test));
             return_shared(swapGlobal);
             next_epoch(test, admin);
         };

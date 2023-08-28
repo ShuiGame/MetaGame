@@ -3,16 +3,18 @@ module shui_module::swap {
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
     use shui_module::shui::{Self};
+    use shui_module::boat_ticket::{Self};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use std::vector::{Self};
     use sui::table::{Self, Table};
     use sui::coin::{Self, Coin, destroy_zero};
     use sui::pay;
+    use sui::display;
     use sui::ed25519;
     use std::debug::print;
     use sui::address::{Self};
-    use sui::hex;
+
 
     const ERR_NO_PERMISSION:u64 = 0x001;
     const ERR_EXCEED_SWAP_LIMIT:u64 = 0x002;
@@ -92,21 +94,22 @@ module shui_module::swap {
         assert!(table::length(&swapGlobal.whitelist_table) <= WHITELIST_MAX_NUM, 1);
     }
 
-    public fun set_whitelists(swapGlobal: &mut SwapGlobal, whitelist: vector<address>, sig: &vector<u8>, msg: &vector<u8>, ctx:&mut TxContext) {
+    // todo:check whether other ppl's ticket can be param
+    public fun set_whitelist(swapGlobal: &mut SwapGlobal, _: &boat_ticket::BoatTicket, ctx:&mut TxContext) {
+        let sender = tx_context::sender(ctx);
+        table::add(&mut swapGlobal.whitelist_table, sender, WHITELIST_SWAP_LIMIT);
+        assert!(table::length(&swapGlobal.whitelist_table) <= WHITELIST_MAX_NUM, 1);
+    }
+
+    public fun white_list_backup(swapGlobal: &mut SwapGlobal, sig: &vector<u8>, msg: &vector<u8>, ctx:&mut TxContext) {
         let pk: vector<u8> = address::to_bytes(swapGlobal.crypto);
         let sender = tx_context::sender(ctx);
-
         print(sig);
         print(msg);
         print(&pk);
         assert!(*msg == address::to_bytes(sender), ERR_INVALID_MSG);
         assert!(ed25519::ed25519_verify(sig, &pk, msg), ERR_NO_PERMISSION);
-        let (i, len) = (0u64, vector::length(&whitelist));
-        while (i < len) {
-            let account = vector::pop_back(&mut whitelist);
-            table::add(&mut swapGlobal.whitelist_table, account, WHITELIST_SWAP_LIMIT);
-            i = i + 1
-        };
+        table::add(&mut swapGlobal.whitelist_table, sender, WHITELIST_SWAP_LIMIT);
         assert!(table::length(&swapGlobal.whitelist_table) <= WHITELIST_MAX_NUM, 1);
     }
 
@@ -144,7 +147,7 @@ module shui_module::swap {
 
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) >= 1, ERR_SWAP_MIN_ONE_SUI);
+        assert!(coin::value(&merged_coin) >= 1_000_000_000, ERR_SWAP_MIN_ONE_SUI);
         let balance = coin::into_balance<SUI>(
             coin::split<SUI>(&mut merged_coin, sui_pay_amount * AMOUNT_DECIMAL, ctx)
         );
