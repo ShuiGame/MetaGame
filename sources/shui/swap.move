@@ -10,7 +10,6 @@ module shui_module::swap {
     use sui::table::{Self, Table};
     use sui::coin::{Self, Coin, destroy_zero};
     use sui::pay;
-    use sui::display;
     use sui::ed25519;
     use std::debug::print;
     use sui::address::{Self};

@@ -107,8 +107,8 @@ module shui_module::boat_ticket {
             &publisher, keys, values, ctx
         );
         
-        // set 5% royalty
-        royalty_policy::new_royalty_policy<BoatTicket>(&publisher, 500, ctx);
+        // set 0% royalty
+        royalty_policy::new_royalty_policy<BoatTicket>(&publisher, 0, ctx);
 
         // Commit first version of `Display` to apply changes.
         display::update_version(&mut display);
