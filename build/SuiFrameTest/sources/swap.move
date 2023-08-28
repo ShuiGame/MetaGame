@@ -9,6 +9,10 @@ module shui_module::swap {
     use sui::table::{Self, Table};
     use sui::coin::{Self, Coin, destroy_zero};
     use sui::pay;
+    use sui::ed25519;
+    use std::debug::print;
+    use sui::address::{Self};
+    use sui::hex;
 
     const ERR_NO_PERMISSION:u64 = 0x001;
     const ERR_EXCEED_SWAP_LIMIT:u64 = 0x002;
@@ -16,6 +20,7 @@ module shui_module::swap {
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x004;
     const ERR_NOT_START:u64 = 0x005;
     const ERR_INVALID_PHASE:u64 = 0x006;
+    const ERR_INVALID_MSG:u64 = 0x007;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
@@ -30,6 +35,7 @@ module shui_module::swap {
     struct SwapGlobal has key {
         id: UID,
         creator: address,
+        crypto: address,
         phase:u64,
         balance_SUI: Balance<SUI>,
         balance_SHUI: Balance<shui::SHUI>,
@@ -43,6 +49,7 @@ module shui_module::swap {
         let global = SwapGlobal {
             id: object::new(ctx),
             creator: tx_context::sender(ctx),
+            crypto: @crypto,
             phase:0,
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
@@ -53,7 +60,7 @@ module shui_module::swap {
         transfer::share_object(global);
     }
 
-    public fun set_Phase(global:&mut SwapGlobal, phase:u64) {
+    public fun set_phase(global:&mut SwapGlobal, phase:u64) {
         assert!(phase == (global.phase + 1), ERR_INVALID_PHASE);
         global.phase = phase;
     }
@@ -62,6 +69,7 @@ module shui_module::swap {
         let global = SwapGlobal {
             id: object::new(ctx),
             creator: tx_context::sender(ctx),
+            crypto: @crypto,
             phase:0,
             balance_SUI: balance::zero(),
             balance_SHUI: balance::zero(),
@@ -84,8 +92,15 @@ module shui_module::swap {
         assert!(table::length(&swapGlobal.whitelist_table) <= WHITELIST_MAX_NUM, 1);
     }
 
-    public fun set_whitelists(swapGlobal: &mut SwapGlobal, whitelist: vector<address>, ctx: &mut TxContext) {
-        assert!(swapGlobal.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+    public fun set_whitelists(swapGlobal: &mut SwapGlobal, whitelist: vector<address>, sig: &vector<u8>, msg: &vector<u8>, ctx:&mut TxContext) {
+        let pk: vector<u8> = address::to_bytes(swapGlobal.crypto);
+        let sender = tx_context::sender(ctx);
+
+        print(sig);
+        print(msg);
+        print(&pk);
+        assert!(*msg == address::to_bytes(sender), ERR_INVALID_MSG);
+        assert!(ed25519::ed25519_verify(sig, &pk, msg), ERR_NO_PERMISSION);
         let (i, len) = (0u64, vector::length(&whitelist));
         while (i < len) {
             let account = vector::pop_back(&mut whitelist);
