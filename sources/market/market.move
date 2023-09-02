@@ -20,6 +20,7 @@ module shui_module::market {
     struct ItemListed has copy, drop {
         kioskId:vector<u8>,
         name:string::String,
+        index: u64,
         owner:address,
         price:u64
     }
@@ -31,12 +32,15 @@ module shui_module::market {
     }
 
     public fun place_and_list_nft(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
+        // todo:bind everycount to an certain kiosk
         let (kiosk, cap) = kiosk::new(ctx);
+        let index = boat_ticket::get_index(&item);
         kiosk::place_and_list(&mut kiosk, &cap, item, price);
         event::emit(
             ItemListed {
                 kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
-                name: string::utf8(b"item"),
+                name: string::utf8(b"starship summons"),
+                index: index,
                 owner: tx_context::sender(ctx),
                 price: price
             }
@@ -61,6 +65,11 @@ module shui_module::market {
         );
     }
 
+    public fun take_and_transfer(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
+        let nft = kiosk::take<boat_ticket::BoatTicket>(kiosk, cap, object::id_from_address(item));
+        transfer::public_transfer(nft, tx_context::sender(ctx));
+    }
+
     public fun close_and_withdraw(kiosk: kiosk::Kiosk, cap: kiosk::KioskOwnerCap, ctx: &mut TxContext) {
         event::emit(
             ItemWithdrew {
@@ -70,7 +79,5 @@ module shui_module::market {
         );
         let sui = kiosk::close_and_withdraw(kiosk, cap, ctx);
         transfer::public_transfer(sui, tx_context::sender(ctx));
-
     }
-
 }

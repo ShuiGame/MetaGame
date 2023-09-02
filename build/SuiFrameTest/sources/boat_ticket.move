@@ -13,10 +13,10 @@ module shui_module::boat_ticket {
     use shui_module::royalty_policy::{Self};
 
     const NAME: vector<u8> = b"BoatTicket#";
-    const DEFAULT_LINK: vector<u8> = b"https://dmens.coming.chat";
+    const DEFAULT_LINK: vector<u8> = b"https://shui.one";
     const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeibzoi4kzr4gg75zhso5jespxnwespyfyakemrwibqorjczkn23vpi.ipfs.nftstorage.link/NFT-CARD1.png";
     const DESCRIPTION: vector<u8> = b"Boat ticket to meta masrs";
-    const PROJECT_URL: vector<u8> = b"https://shui.one";
+    const PROJECT_URL: vector<u8> = b"https://shui.one/game/#/";
     const CREATOR: vector<u8> = b"metaGame";
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x004;
@@ -34,6 +34,10 @@ module shui_module::boat_ticket {
         balance_SUI: Balance<SUI>,
         creator: address,
         num:u64
+    }
+
+    public fun get_index(ticket: &BoatTicket): u64 {
+        ticket.index
     }
 
     public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
@@ -64,7 +68,7 @@ module shui_module::boat_ticket {
     public entry fun claim_ticket(global:&mut BoatTicketGlobal, ctx:&mut TxContext) {
         let ticket = BoatTicket {
             id:object::new(ctx),
-            name:utf8(b""),
+            name:utf8(b"Shui Meta Ticket"),
             index:global.num,
             whitelist_claimed: false
         };
@@ -115,6 +119,17 @@ module shui_module::boat_ticket {
         transfer::public_transfer(publisher, sender(ctx));
         transfer::public_transfer(display, sender(ctx));
 
+        let global = BoatTicketGlobal {
+            id: object::new(ctx),
+            balance_SUI: balance::zero(), 
+            creator: tx_context::sender(ctx),
+            num:0
+        };
+        transfer::share_object(global);
+    }
+
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
         let global = BoatTicketGlobal {
             id: object::new(ctx),
             balance_SUI: balance::zero(), 

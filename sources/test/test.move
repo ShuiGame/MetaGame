@@ -20,6 +20,11 @@ module shui_module::airdrop_test {
     use shui_module::swap::{Self};
     use shui_module::tree_of_life::{Self};
     use shui_module::crypto::{Self};
+    use shui_module::boat_ticket::{Self};
+    use shui_module::market::{Self};
+    use sui::object::{Self};
+    use sui::kiosk::{Self};
+
     use sui::hex::{Self};
 
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
@@ -86,6 +91,46 @@ module shui_module::airdrop_test {
             print(&res);
             // print(hex::decode(b"This is a test of the tsunami alert system."));
         };
+        end(scenario);
+    }
+
+    #[test]
+    fun test_market() {
+        let scenario = scenario();
+        let test = &mut scenario;
+        let admin = @account;
+
+        next_tx(test, admin);
+        {
+            boat_ticket::init_for_test(ctx(test));
+        };
+
+        // init package
+        next_tx(test, admin);
+        {
+            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+            next_epoch(test, admin);
+            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+            let addr = object::id_address(&ticket);
+
+            market::place_and_list_nft(ticket, 10, ctx(test));
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
+            return_to_sender(test, kiosk);
+            return_to_sender(test, cap);
+
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::close_and_withdraw(kiosk, cap, ctx(test));
+            return_shared(ticketGlobal);
+        };
+
         end(scenario);
     }
 
