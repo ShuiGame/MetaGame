@@ -1,5 +1,6 @@
 module shui_module::market {
     use std::string;
+    use sui::object::{UID};
     use sui::kiosk::{Self};
     use shui_module::boat_ticket::{Self};
     use sui::event;
@@ -40,7 +41,7 @@ module shui_module::market {
         reason:string::String
     }
 
-    public fun place_and_list_game_items<T: key + store>(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext) {
+    public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext) {
         // extract and drop items
         tree_of_life::extract_drop_items(meta, name, num);
 
@@ -49,13 +50,11 @@ module shui_module::market {
             id: object::new(ctx),
             name: name,
             num: num
-        }
+        };
 
         // list_to_market
         let (kiosk, cap) = kiosk::new(ctx);
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);        
-
-        // 发送事件
         event::emit(
             ItemListed {
                 kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
@@ -90,7 +89,7 @@ module shui_module::market {
     }
 
     public fun buy_game_items(meta:&mut MetaIdentity, policy: &mut TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
-        let gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
+        let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
         coin::destroy_zero(royalty_pay);
@@ -99,7 +98,7 @@ module shui_module::market {
         object::delete(id);
 
         // create and add to items
-        tree_of_life::fill_items(mata, name, num);
+        tree_of_life::fill_items(meta, name, num);
         event::emit(
             ItemWithdrew {
                 kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),

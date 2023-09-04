@@ -103,10 +103,10 @@ module shui_module::airdrop_test {
         next_tx(test, admin);
         {
             let res = tree_of_life::get_item_type_by_name(string::utf8(b"holy_water_element"));
-            print(res);
+            print(&res);
 
             let res2 = tree_of_life::get_type_by_name(string::utf8(b"holy_water_element"));
-            print(res2);
+            print(&res2);
         };
     }
 
@@ -130,7 +130,7 @@ module shui_module::airdrop_test {
             let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
             let addr = object::id_address(&ticket);
 
-            market::place_and_list_nft(ticket, 10, ctx(test));
+            market::place_and_list_boat_ticket(ticket, 10, ctx(test));
             next_epoch(test, admin);
 
             let kiosk = take_from_sender<kiosk::Kiosk>(test);
