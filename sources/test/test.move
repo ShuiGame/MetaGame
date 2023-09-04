@@ -95,6 +95,22 @@ module shui_module::airdrop_test {
     }
 
     #[test]
+    fun test_name_type_transfer() {
+        let scenario = scenario();
+        let test = &mut scenario;
+        let admin = @account;
+
+        next_tx(test, admin);
+        {
+            let res = tree_of_life::get_item_type_by_name(string::utf8(b"holy_water_element"));
+            print(res);
+
+            let res2 = tree_of_life::get_type_by_name(string::utf8(b"holy_water_element"));
+            print(res2);
+        };
+    }
+
+    #[test]
     fun test_market() {
         let scenario = scenario();
         let test = &mut scenario;
