@@ -139,7 +139,7 @@ module shui_module::shui {
         transfer::public_transfer(shui, recepient);
     }
 
-    public entry fun burn<T>(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
+    public entry fun burn(treasury: &mut TreasuryCap<SHUI>, coin: Coin<SHUI>) {
         coin::burn(treasury, coin);
     }
 

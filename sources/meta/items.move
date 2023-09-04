@@ -7,6 +7,9 @@ module shui_module::items {
     use sui::tx_context::{TxContext};
     use std::option::{Self};
     use std::ascii;
+    use sui::transfer;
+    use sui::table::{Self};
+    use sui::object::{Self, UID};
 
     friend shui_module::metaIdentity;
     friend shui_module::tree_of_life;
@@ -20,13 +23,58 @@ module shui_module::items {
         bags:bag::Bag,
 
         // store nums of objects for print: name -> num
-        link_table:LinkedTable<string::String, u16>
+        link_table:LinkedTable<string::String, u16>,
+    }
+
+    struct ItemGlobal has key {
+        id: UID,
+
+        // store name -> desc
+        desc_table:table::Table<string::String, string::String>,
+    }
+
+    #[test_only]
+    public fun init_for_test(ctx: &mut TxContext) {
+        let global = ItemGlobal {
+            id: object::new(ctx),
+            desc_table: table::new<string::String, string::String>(ctx)
+        };
+        init_items_desc(&mut global);
+        transfer::share_object(global);
+    }
+
+    fun init(ctx: &mut TxContext) {
+        let global = ItemGlobal {
+            id: object::new(ctx),
+            desc_table: table::new<string::String, string::String>(ctx)
+        };
+        init_items_desc(&mut global);
+        transfer::share_object(global);
+    }
+
+    fun init_items_desc(global:&mut ItemGlobal) {
+        // fruit
+        table::add(&mut global.desc_table, string::utf8(b"fruit"), string::utf8(b"fruit desc"));
+
+        // water element
+        table::add(&mut global.desc_table, string::utf8(b"water_element_holy"), string::utf8(b"holy water element desc"));
+        table::add(&mut global.desc_table, string::utf8(b"water_element_blood"), string::utf8(b"blood water element desc"));
+        table::add(&mut global.desc_table, string::utf8(b"water_element_resurrect"), string::utf8(b"resurrect water element desc"));
+        table::add(&mut global.desc_table, string::utf8(b"water_element_life"), string::utf8(b"life water element desc"));
+        table::add(&mut global.desc_table, string::utf8(b"water_element_memory"), string::utf8(b"memory water element desc"));
+
+        // fragment
+        table::add(&mut global.desc_table, string::utf8(b"fragment_holy"), string::utf8(b"holy water element fragment desc"));
+        table::add(&mut global.desc_table, string::utf8(b"fragment_blood"), string::utf8(b"holy water element fragment desc"));
+        table::add(&mut global.desc_table, string::utf8(b"fragment_resurrect"), string::utf8(b"holy water element fragment desc"));
+        table::add(&mut global.desc_table, string::utf8(b"fragment_life"), string::utf8(b"holy water element fragment desc"));
+        table::add(&mut global.desc_table, string::utf8(b"fragment_memory"), string::utf8(b"holy water element fragment desc"));
     }
 
     public(friend) fun new(ctx:&mut TxContext): Items {
         Items {
             bags:bag::new(ctx),
-            link_table:linked_table::new<string::String, u16>(ctx)
+            link_table:linked_table::new<string::String, u16>(ctx),
         }
     }
 
@@ -114,9 +162,14 @@ module shui_module::items {
         }
     }
 
-    public(friend) fun get_items_info(items: &Items) : string::String {
-        let byte_coma = ascii::byte(ascii::char(58));
+    public(friend) fun get_items_info(itemGlobal:&ItemGlobal, items: &Items) : string::String {
+        // :
+        let byte_colon = ascii::byte(ascii::char(58));
+        // ;
         let byte_semi = ascii::byte(ascii::char(59));
+        // ,
+        let byte_comma = ascii::byte(ascii::char(44));
+
         let table: &linked_table::LinkedTable<string::String, u16> = &items.link_table;
         if (linked_table::is_empty(table)) {
             return string::utf8(b"none")
@@ -124,20 +177,28 @@ module shui_module::items {
         let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
         let key:&option::Option<string::String> = linked_table::front(table);
         let key_value = *option::borrow(key);
+
+        // name:num,desc;
         vector::append(&mut vec_out, *string::bytes(&key_value));
-        vector::push_back(&mut vec_out, byte_coma);
+        vector::push_back(&mut vec_out, byte_colon);
         let val_str = linked_table::borrow(table, key_value);
         vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+        vector::push_back(&mut vec_out, byte_comma);
+        let desc_str = get_desc_by_name(itemGlobal, key_value);
+        vector::append(&mut vec_out, *string::bytes(&desc_str));
         vector::push_back(&mut vec_out, byte_semi);
 
         let next:&option::Option<string::String> = linked_table::next(table, *option::borrow(key));
         while (option::is_some(next)) {
             let key_value = *option::borrow(next);
             vector::append(&mut vec_out, *string::bytes(&key_value));
-            vector::push_back(&mut vec_out, byte_coma);
+            vector::push_back(&mut vec_out, byte_colon);
 
             let val_str = linked_table::borrow(table, key_value);
             vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+            vector::push_back(&mut vec_out, byte_comma);
+            let desc_str = get_desc_by_name(itemGlobal, key_value);
+            vector::append(&mut vec_out, *string::bytes(&desc_str));
             vector::push_back(&mut vec_out, byte_semi);
             next = linked_table::next(table, key_value);
         };
@@ -157,4 +218,12 @@ module shui_module::items {
         vector::reverse(&mut vec);
         vec
     }
+
+    public fun get_desc_by_name(global: &ItemGlobal, name:string::String): string::String {
+        if (table::contains(&global.desc_table, name)) {
+            return *table::borrow(&global.desc_table, name)
+        };
+        string::utf8(b"None")
+    }
+
 }

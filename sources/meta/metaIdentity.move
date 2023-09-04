@@ -261,8 +261,8 @@ module shui_module::metaIdentity {
         &mut meta.items
     }
 
-    public fun get_items_info(meta: &MetaIdentity) : string::String {
-        items::get_items_info(&meta.items)
+    public fun get_items_info(meta: &MetaIdentity, itemGlobal:&items::ItemGlobal) : string::String {
+        items::get_items_info(itemGlobal, &meta.items)
     }
 
     public fun get_meta_id(meta: &MetaIdentity): u64 {

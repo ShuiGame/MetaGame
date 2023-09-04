@@ -12,12 +12,20 @@ module shui_module::airdrop_test {
     };
     use sui::tx_context;
     use sui::pay;
+    use shui_module::items::{Self};
     use shui_module::shui::{Self};
     use shui_module::metaIdentity::{Self};
     use shui_module::airdrop::{Self};
     use shui_module::founder_team_reserve::{Self};
     use shui_module::swap::{Self};
     use shui_module::tree_of_life::{Self};
+    use shui_module::crypto::{Self};
+    use shui_module::boat_ticket::{Self};
+    use shui_module::market::{Self};
+    use sui::object::{Self};
+    use sui::kiosk::{Self};
+
+    use sui::hex::{Self};
 
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const DAY_IN_MS: u64 = 86_400_000;
@@ -49,9 +57,9 @@ module shui_module::airdrop_test {
         return_shared(treeGlobal);
     }
 
-    fun print_items(test: &mut Scenario) {
+    fun print_items(itemGlobal: &items::ItemGlobal, test: &mut Scenario) {
         let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-        let items_info = metaIdentity::get_items_info(&meta);
+        let items_info = metaIdentity::get_items_info(&meta, itemGlobal);
         print(&items_info);
         return_to_sender(test, meta);
     }
@@ -69,7 +77,64 @@ module shui_module::airdrop_test {
     //     print(&ids);
     // }
 
+    // #[test]
+    fun test_crypto() {
+        let scenario = scenario();
+        let test = &mut scenario;
+        let admin = @account;
+
+        // init package
+        next_tx(test, admin);
+        {
+            let res = crypto::test_ecds();
+            print(&string::utf8(b"test:"));
+            print(&res);
+            // print(hex::decode(b"This is a test of the tsunami alert system."));
+        };
+        end(scenario);
+    }
+
     #[test]
+    fun test_market() {
+        let scenario = scenario();
+        let test = &mut scenario;
+        let admin = @account;
+
+        next_tx(test, admin);
+        {
+            boat_ticket::init_for_test(ctx(test));
+        };
+
+        // init package
+        next_tx(test, admin);
+        {
+            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+            next_epoch(test, admin);
+            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+            let addr = object::id_address(&ticket);
+
+            market::place_and_list_nft(ticket, 10, ctx(test));
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
+            return_to_sender(test, kiosk);
+            return_to_sender(test, cap);
+
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::close_and_withdraw(kiosk, cap, ctx(test));
+            return_shared(ticketGlobal);
+        };
+
+        end(scenario);
+    }
+
+    // #[test]
     fun test_init() {
         let scenario = scenario();
         let test = &mut scenario;
@@ -86,6 +151,7 @@ module shui_module::airdrop_test {
             swap::init_for_test(ctx(test));
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
+            items::init_for_test(ctx(test));
         };
 
         // funds split
@@ -157,6 +223,7 @@ module shui_module::airdrop_test {
         // water down test
         next_tx(test, test_user);
         {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
             let i = 0;
             while (i < 200) {
                 clock::increment_for_testing(&mut clock, 8 * HOUR_IN_MS + 1);
@@ -164,15 +231,17 @@ module shui_module::airdrop_test {
                 next_epoch(test, test_user);
                 i = i + 1;
             };
-            // print_items(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
         };
 
         // open fruits test
         next_tx(test, test_user);
         {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
             tx_context::increment_epoch_timestamp(ctx(test), 4);
             let i = 0;
-            let loop_num = 12;
+            let loop_num = 5;
             let days_min = loop_num * 3;
             print(&string::utf8(b"min_days:"));
             print(&days_min);
@@ -184,7 +253,8 @@ module shui_module::airdrop_test {
                 i = i + 1;
                 next_epoch(test, test_user);
             };
-            print_items(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
         };
 
         // synthesis test
@@ -207,7 +277,19 @@ module shui_module::airdrop_test {
             return_shared(founderTeamGlobal);
         };
 
-        // set whitelist
+        // set swap whitelist
+        next_tx(test, admin);
+        {
+            let type = 0;
+            let swapGlobal = take_shared<swap::SwapGlobal>(test);
+            let msg = x"be379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c18";
+            let sig = x"91EEC3C09428D1E3ECF7DDD723E71A6E7108293FD7B0EB6AE2C796A84D8DF3AE09D6119EE5FE9016BC14847C3AF69130B4CE06534EA1A5EBB13142BFCA0A430C";
+            swap::white_list_backup(&mut swapGlobal, &sig, &msg, ctx(test));
+            return_shared(swapGlobal);
+            next_epoch(test, admin);
+        };
+
+        // set founder team whitelist
         next_tx(test, admin);
         {
             let type = 0;

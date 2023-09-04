@@ -14,11 +14,13 @@ module shui_module::tree_of_life {
     use shui_module::items;
     use shui_module::metaIdentity::{Self, MetaIdentity, get_items};
     use shui_module::shui_ticket::{Self};
-    use std::string;
+    use std::string::{Self, String};
     use sui::event;
 
     const DAY_IN_MS: u64 = 86_400_000;
     const HOUR_IN_MS: u64 = 3_600_000;
+    const MIN_IN_MILLS: u64 = 60_000;
+    const SECONDS_IN_MILLS: u64 = 1_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
     const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
@@ -37,8 +39,8 @@ module shui_module::tree_of_life {
         id: UID,
         balance_SHUI: Balance<SHUI>,
         creator: address,
-        water_down_last_time_records: Table<address, u64>,
-        water_down_person_exp_records: Table<address, u64>,
+        water_down_last_time_records: Table<u64, u64>,
+        water_down_person_exp_records: Table<u64, u64>,
     }
 
     // ====== Events ======
@@ -47,20 +49,18 @@ module shui_module::tree_of_life {
         meta_id: u64,
         name: string::String,
         element_reward: string::String,
-        ticket_reward: string::String,
-    }
-
-    struct TicketOpen has copy, drop {
-        meta_id: u64,
-        amount: u64
     }
 
     struct WaterElement has store, drop {
-        class:string::String
+        class:string::String,
+        name:string::String,
+        desc:string::String
     }
 
     struct Fragment has store, drop {
-        class:string::String
+        class:string::String,
+        name:string::String,
+        desc:string::String
     }
 
     struct Fruit has store {}
@@ -72,8 +72,8 @@ module shui_module::tree_of_life {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
             creator: tx_context::sender(ctx),
-            water_down_last_time_records: table::new<address, u64>(ctx),
-            water_down_person_exp_records: table::new<address, u64>(ctx),
+            water_down_last_time_records: table::new<u64, u64>(ctx),
+            water_down_person_exp_records: table::new<u64, u64>(ctx),
         };
         transfer::share_object(global);
     }
@@ -83,8 +83,8 @@ module shui_module::tree_of_life {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
             creator: tx_context::sender(ctx),
-            water_down_last_time_records: table::new<address, u64>(ctx),
-            water_down_person_exp_records: table::new<address, u64>(ctx),
+            water_down_last_time_records: table::new<u64, u64>(ctx),
+            water_down_person_exp_records: table::new<u64, u64>(ctx),
         };
         transfer::share_object(global);
     }
@@ -101,14 +101,13 @@ module shui_module::tree_of_life {
     public entry fun water_down(global: &mut TreeGlobal, meta:&mut MetaIdentity, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
         // interval time should be greater than 1 days
         let amount = 1;
-        let sender = tx_context::sender(ctx);
         let now = clock::timestamp_ms(clock);
-        if (table::contains(&global.water_down_last_time_records, sender)) {
-            let lastWaterDownTime = table::borrow_mut(&mut global.water_down_last_time_records, sender);
-            assert!((now - *lastWaterDownTime) > 8 * HOUR_IN_MS, ERR_INTERVAL_TIME_ONE_DAY);
+        if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
+            let lastWaterDownTime = table::borrow_mut(&mut global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
+            assert!((now - *lastWaterDownTime) > 15 * SECONDS_IN_MILLS, ERR_INTERVAL_TIME_ONE_DAY);
             *lastWaterDownTime = now;
         } else {
-            table::add(&mut global.water_down_last_time_records, sender, now);
+            table::add(&mut global.water_down_last_time_records, metaIdentity::get_meta_id(meta), now);
         };
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
@@ -124,18 +123,18 @@ module shui_module::tree_of_life {
         };
 
         // record the time and exp
-        if (table::contains(&global.water_down_person_exp_records, &meta.id)) {
-            let last_exp = *table::borrow(&global.water_down_person_exp_records, &meta.id);
-            if (last_exp == 9) {
+        if (table::contains(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))) {
+            let last_exp = *table::borrow(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
+            if (last_exp == 2) {
                 items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
-                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, &meta.id);
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
                 *exp = 0;
             } else {
-                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, &meta.id);
+                let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
                 *exp = *exp + 1;
             }
         } else {
-            table::add(&mut global.water_down_person_exp_records, &meta.id, 1);
+            table::add(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta), 1);
         };
     }
 
@@ -155,7 +154,9 @@ module shui_module::tree_of_life {
         let water_element_name = string::utf8(b"water_element_");
         string::append(&mut water_element_name, *&fragment_type);
         items::store_item(get_items(meta), water_element_name, WaterElement {
-            class:fragment_type
+            class:fragment_type,
+            name:get_name_by_type(fragment_type, false),
+            desc:get_desc_by_type(fragment_type, false)
         });
     }
 
@@ -190,17 +191,63 @@ module shui_module::tree_of_life {
         reward_string
     }
 
-    fun create_fragments_by_class(loop_num:u64, type:string::String) : vector<Fragment> {
+    fun create_fragments_by_class(loop_num:u64, type:string::String, name_str:string::String, desc_str:string::String) : vector<Fragment> {
         assert!(check_class(&type), ERR_INVALID_TYPE);
         let array = vector::empty();
         let i = 0;
         while (i < loop_num) {
-            vector::push_back(&mut array, Fragment{
-                class:type
+            vector::push_back(&mut array, Fragment {
+                class:type,
+                name:name_str,
+                desc:desc_str
             });
             i = i + 1;
         };
         array
+    }
+
+    fun get_name_by_type(type:string::String, is_fragment:bool):string::String {
+        let name = *&type;
+        if (is_fragment) {
+            string::append(&mut name, string::utf8(b"_fragment"))
+        } else {
+            string::append(&mut name, string::utf8(b"_water_element"))
+        };
+        name
+    }
+
+    fun get_desc_by_type(type:String, is_fragment:bool) : string::String {
+        let desc;
+        if (is_fragment) {
+            if (type == string::utf8(b"holy")) {
+                desc = string::utf8(b"holy water element fragment desc");
+            } else if (type == string::utf8(b"memory")) {
+                desc = string::utf8(b"memory water element fragment desc");
+            } else if (type == string::utf8(b"blood")) {
+                desc = string::utf8(b"blood water element fragment desc");
+            } else if (type == string::utf8(b"resurrect")) {
+                desc = string::utf8(b"resurrect water element fragment desc");
+            } else if (type == string::utf8(b"memory")) {
+                desc = string::utf8(b"memory water element fragment desc");
+            } else {
+                desc = string::utf8(b"None");
+            }
+        } else {
+            if (type == string::utf8(b"holy")) {
+                desc = string::utf8(b"holy water element desc");
+            } else if (type == string::utf8(b"memory")) {
+                desc = string::utf8(b"memory water element fragment desc");
+            } else if (type == string::utf8(b"blood")) {
+                desc = string::utf8(b"blood water element fragment desc");
+            } else if (type == string::utf8(b"resurrect")) {
+                desc = string::utf8(b"resurrect water element fragment desc");
+            } else if (type == string::utf8(b"memory")) {
+                desc = string::utf8(b"memory water element fragment desc");
+            } else {
+                desc = string::utf8(b"None");
+            }
+        };
+        desc
     }
 
     fun receive_random_element(random:u64, meta:&mut MetaIdentity):string::String {
@@ -218,7 +265,7 @@ module shui_module::tree_of_life {
         } else if (random <= 611) {
             reward_string = string::utf8(b"holy");
         } else if (random <= 1611) {
-            reward_string = string::utf8(b"resurrect");
+            reward_string = string::utf8(b"resurrect");  
             is_fragment = false;
         } else if (random <= 4111) {
             reward_string = string::utf8(b"memory");
@@ -234,21 +281,28 @@ module shui_module::tree_of_life {
         };
         if (is_fragment) {
             let name = string::utf8(b"fragment_");
+            let res = string::utf8(b"fragment_");
+            string::append(&mut res, *&reward_string);
+            string::append(&mut res, string::utf8(b":5"));
             string::append(&mut name, *&reward_string);
-            let array = create_fragments_by_class(5, *&reward_string);
+            let array = create_fragments_by_class(5, *&reward_string, *&get_name_by_type(reward_string, true), *&get_desc_by_type(reward_string, true));
             items::store_items(get_items(meta), name, array);
-            name
+            res
         } else {
             let name = string::utf8(b"water_element_");
+            let res = string::utf8(b"fragment_");
             string::append(&mut name, *&reward_string);
-            items::store_item(get_items(meta), name, WaterElement{
-                class:reward_string
+            string::append(&mut res, *&reward_string);
+            items::store_item(get_items(meta), name, WaterElement {
+                class:reward_string,
+                name:get_name_by_type(reward_string, false),
+                desc:get_desc_by_type(reward_string, false)
             });
-            name
+            res
         }
     }
 
-    public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) {
+    public entry fun open_fruit(meta:&mut MetaIdentity, ctx:&mut TxContext) : string::String {
         let Fruit {} = items::extract_item(get_items(meta), string::utf8(b"fruit"));
         let num = get_random_num(0, 30610, 0, ctx);
         let num_u8 = num % 255;
@@ -260,14 +314,16 @@ module shui_module::tree_of_life {
             string::append(&mut reword_element, reward_element2);
         };
         let reword_ticket : string::String = random_ticket(ctx);
+        string::append(&mut reword_element, string::utf8(b";"));
+        string::append(&mut reword_element, reword_ticket);
         event::emit(
             FruitOpened {
                 meta_id: metaIdentity::get_meta_id(meta),
                 name: metaIdentity::get_meta_name(meta),
                 element_reward: reword_element,
-                ticket_reward: reword_ticket
             }
         );
+        reword_element
     }
 
     // [min, max]
@@ -303,23 +359,23 @@ module shui_module::tree_of_life {
         hash
     }
 
-    public fun get_water_down_person_exp(global: &TreeGlobal, meta_id:address) :u64 {
-        if (table::contains(&global.water_down_person_exp_records, meta_id)) {
-            *table::borrow(&global.water_down_person_exp_records, meta_id)
+    public fun get_water_down_person_exp(global: &TreeGlobal, meta:&MetaIdentity) :u64 {
+        if (table::contains(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))) {
+            *table::borrow(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))
         } else {
             0
         }
     }
 
-    public fun get_water_down_left_time_mills(global: &TreeGlobal, wallet_addr:address, clock: &Clock) : u64 {
+    public fun get_water_down_left_time_mills(global: &TreeGlobal, meta:&MetaIdentity, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let last_time = 0;
-        if (table::contains(&global.water_down_last_time_records, wallet_addr)) {
-            last_time = *table::borrow(&global.water_down_last_time_records, wallet_addr);
+        if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
+            last_time = *table::borrow(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
         };
-        let next_time = last_time + 8 * HOUR_IN_MS;
-        if (now > next_time) {
-            now - next_time
+        let next_time = last_time + 15 * SECONDS_IN_MILLS;
+        if (now < next_time) {
+            next_time - now
         } else {
             0
         }
