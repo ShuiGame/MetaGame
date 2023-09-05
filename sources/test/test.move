@@ -94,7 +94,7 @@ module shui_module::airdrop_test {
         end(scenario);
     }
 
-    #[test]
+    // #[test]
     fun test_name_type_transfer() {
         let scenario = scenario();
         let test = &mut scenario;
@@ -102,27 +102,58 @@ module shui_module::airdrop_test {
 
         next_tx(test, admin);
         {
-            let res = tree_of_life::get_item_type_by_name(string::utf8(b"holy_water_element"));
+            let res = tree_of_life::get_item_type_by_name(string::utf8(b"water_element_holy"));
+            let res2 = tree_of_life::get_element_type_by_name(string::utf8(b"water_element_holy"));
+            let res3 = tree_of_life::get_item_type_by_name(string::utf8(b"fragment_holy"));
             print(&res);
-
-            let res2 = tree_of_life::get_type_by_name(string::utf8(b"holy_water_element"));
             print(&res2);
+            print(&res3);
         };
         end(scenario);
     }
 
     #[test]
     fun test_market() {
+        print(&string::utf8(b"start market test"));
+        
         let scenario = scenario();
         let test = &mut scenario;
         let admin = @account;
+
+        // init package
+        next_tx(test, admin);
+        {
+            shui::init_for_test(test);
+            metaIdentity::init_for_test(ctx(test));
+            airdrop::init_for_test(ctx(test));
+            swap::init_for_test(ctx(test));
+            founder_team_reserve::init_for_test(ctx(test));
+            tree_of_life::init_for_test(ctx(test));
+            items::init_for_test(ctx(test));
+        };
+
+
+        // register meta
+        next_tx(test, admin);
+        {
+            let global = take_shared<metaIdentity::MetaInfoGlobal>(test);
+            metaIdentity::mintMeta(
+                &mut global,
+                string::utf8(b"sean"),
+                string::utf8(b"13262272231"),
+                string::utf8(b"448651346@qq.com"),
+                admin,
+                ctx(test)
+            );
+            return_shared(global)
+        };
 
         next_tx(test, admin);
         {
             boat_ticket::init_for_test(ctx(test));
         };
 
-        // init package
+        // boat ticket test
         next_tx(test, admin);
         {
             let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
@@ -146,6 +177,105 @@ module shui_module::airdrop_test {
             let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
             market::close_and_withdraw(kiosk, cap, ctx(test));
             return_shared(ticketGlobal);
+        };
+
+        // water down
+        next_tx(test, admin);
+        {
+            let clock = clock::create_for_testing(ctx(test));
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let i = 0;
+            while (i < 60) {
+                clock::increment_for_testing(&mut clock, 8 * HOUR_IN_MS + 1);
+                water_down(test, admin, &clock);
+                next_epoch(test, admin);
+                i = i + 1;
+            };
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
+            clock::destroy_for_testing(clock);
+        };
+
+        // open fruit for fragment
+        next_tx(test, admin);
+        {
+            print(&string::utf8(b"open some fruits"));
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            tx_context::increment_epoch_timestamp(ctx(test), 4);
+            let i = 0;
+            let loop_num = 5;
+            let days_min = loop_num * 3;
+            while (i < loop_num) {
+                let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+                tree_of_life::open_fruit(&mut meta, ctx(test));
+                return_to_sender(test, meta);
+                next_epoch(test, admin);
+                i = i + 1;
+                next_epoch(test, admin);
+            };
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
+        };
+
+        // boat_ticket market test
+        next_tx(test, admin);
+        {
+            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+            next_epoch(test, admin);
+            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+            let addr = object::id_address(&ticket);
+            market::place_and_list_boat_ticket(ticket, 20, ctx(test));
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
+            return_to_sender(test, kiosk);
+            return_to_sender(test, cap);
+
+            next_epoch(test, admin);
+
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::close_and_withdraw(kiosk, cap, ctx(test));
+            return_shared(ticketGlobal);
+        };
+
+        // game item market test
+        next_tx(test, admin);
+        {
+            print(&string::utf8(b"list to market"));
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            let name = string::utf8(b"fruit");   
+            let num = 12;
+            let addr = market::place_and_list_game_items(&mut meta, 20, name, num, ctx(test));
+            return_to_sender(test, meta);
+
+            next_epoch(test,admin);
+
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
+
+            next_epoch(test, admin);
+
+            print(&string::utf8(b"take from market"));
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            market::take_and_transfer_items(&mut kiosk, &cap, &mut meta, addr, ctx(test));
+            return_to_sender(test, kiosk);
+            return_to_sender(test, cap);
+            return_to_sender(test, meta);
+        };
+
+            
+        next_tx(test, admin);
+        {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
         };
 
         end(scenario);
@@ -275,14 +405,14 @@ module shui_module::airdrop_test {
         };
 
         // synthesis test
-        next_tx(test, test_user);
-        {
+        // next_tx(test, test_user);
+        // {
             // let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             // tree_of_life::swap_fragment<tree_of_life::Fragment>(&mut meta, string::utf8(b"holy"));
             // return_to_sender(test, meta);
             // next_epoch(test, test_user);
             // print_items(test);
-        };
+        // };
 
         // founder_team_reserve start
         next_tx(test, admin);

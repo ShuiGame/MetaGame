@@ -41,7 +41,7 @@ module shui_module::market {
         reason:string::String
     }
 
-    public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext) {
+    public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext):address {
         // extract and drop items
         tree_of_life::extract_drop_items(meta, name, num);
 
@@ -51,7 +51,7 @@ module shui_module::market {
             name: name,
             num: num
         };
-
+        let addr = object::id_address(&virtualCredential);
         // list_to_market
         let (kiosk, cap) = kiosk::new(ctx);
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);        
@@ -67,6 +67,7 @@ module shui_module::market {
         );
         transfer::public_transfer(cap, tx_context::sender(ctx));
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
+        addr
     }
 
     public fun place_and_list_boat_ticket(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
@@ -126,6 +127,13 @@ module shui_module::market {
     public fun take_and_transfer(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
         let nft = kiosk::take<boat_ticket::BoatTicket>(kiosk, cap, object::id_from_address(item));
         transfer::public_transfer(nft, tx_context::sender(ctx));
+    }
+
+    public fun take_and_transfer_items(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, meta:&mut MetaIdentity, virtual_item: address, ctx: &mut TxContext) {
+        let gameCredential = kiosk::take<GameItemsCredential>(kiosk, cap, object::id_from_address(virtual_item));
+        let GameItemsCredential {id, name, num} = gameCredential;
+        object::delete(id);
+        tree_of_life::fill_items(meta, name, num);
     }
 
     public fun close_and_withdraw(kiosk: kiosk::Kiosk, cap: kiosk::KioskOwnerCap, ctx: &mut TxContext) {

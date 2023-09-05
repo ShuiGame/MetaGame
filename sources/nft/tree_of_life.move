@@ -141,7 +141,7 @@ module shui_module::tree_of_life {
     }
 
     public(friend) fun fill_items(meta:&mut MetaIdentity, name:string::String, num:u64) {
-        let type = get_type_by_name(name);
+        let type = get_element_type_by_name(name);
         let item_type = get_item_type_by_name(name);
         if (item_type == string::utf8(b"fragment")) {
             let array = create_fragments_by_class(5, type, name, *&get_desc_by_type(type, true));
@@ -149,13 +149,16 @@ module shui_module::tree_of_life {
         } else if (item_type == string::utf8(b"water_element")) {
             let array = create_water_elements_by_class(5, type, name, *&get_desc_by_type(type, false));
             items::store_items<WaterElement>(get_items(meta), name, array);
+        } else if (item_type == string::utf8(b"fruit")) {
+            let array = create_fruits(num);
+            items::store_items<Fruit>(get_items(meta), name, array);
         } else {
             assert!(false, ERR_INVALID_NAME);
         }
     }
 
     public(friend) fun extract_drop_items(meta:&mut MetaIdentity, name:string::String, num:u64) {
-        let type = get_type_by_name(name);
+        let type = get_element_type_by_name(name);
         let item_type = get_item_type_by_name(name);
         let vec;
         let items = get_items(meta);
@@ -165,9 +168,12 @@ module shui_module::tree_of_life {
         } else if (item_type == string::utf8(b"water_element")) {
             let vec = items::extract_items<WaterElement>(items, name, num);
             clear_vec<WaterElement>(vec);
+        } else if (item_type == string::utf8(b"fruit")) {
+            let vec = items::extract_items<Fruit>(items, name, num);
+            clear_vec<Fruit>(vec);
         } else {
             assert!(false, ERR_INVALID_NAME);
-        };
+        }
     }
 
     fun clear_vec<T:store + drop>(vec:vector<T>) {
@@ -233,6 +239,16 @@ module shui_module::tree_of_life {
         reward_string
     }
 
+    fun create_fruits(num:u64): vector<Fruit> {
+        let array = vector::empty();
+        let i = 0;
+        while (i < num) {
+            vector::push_back(&mut array, Fruit {});
+            i = i + 1;
+        };
+        array
+    }
+
     fun create_water_elements_by_class(loop_num:u64, type:string::String, name_str:string::String, desc_str:string::String) : vector<WaterElement> {
         assert!(check_class(&type), ERR_INVALID_TYPE);
         let array = vector::empty();
@@ -264,25 +280,32 @@ module shui_module::tree_of_life {
     }
 
     public fun get_item_type_by_name(name:string::String):string::String {
-        let frag_index = string::index_of(&name, &string::utf8(b"_fragment"));
-        if (frag_index > 0) {
+        let frag_index = string::index_of(&name, &string::utf8(b"fragment_"));
+        if (frag_index < string::length(&name)) {
             return string::utf8(b"fragment")
         };
-        let water_ele_index = string::index_of(&name, &string::utf8(b"_water_element"));
-        if (water_ele_index > 0) {
+        let water_ele_index = string::index_of(&name, &string::utf8(b"water_element_"));
+        if (water_ele_index < string::length(&name)) {
             return string::utf8(b"water_element")
+        };
+        let fruit_index = string::index_of(&name, &string::utf8(b"fruit"));
+        if (fruit_index < string::length(&name)) {
+            return string::utf8(b"fruit")
         };
         return string::utf8(b"none")
     }
 
-    public fun get_type_by_name(name:string::String):string::String {
-        let frag_index = string::index_of(&name, &string::utf8(b"_fragment"));
-        if (frag_index > 0) {
-            return string::sub_string(&name, 0, frag_index)
+    public fun get_element_type_by_name(name:string::String):string::String {
+        let len = string::length(&name);
+        let frag_tag = string::utf8(b"fragment_");
+        let frag_index = string::index_of(&name, &frag_tag);
+        if (frag_index < len) {
+            return string::sub_string(&name, frag_index + string::length(&frag_tag), len)
         };
-        let water_ele_index = string::index_of(&name, &string::utf8(b"_water_element"));
-        if (water_ele_index > 0) {
-            return string::sub_string(&name, 0, water_ele_index)
+        let ele_tag = string::utf8(b"water_element_");
+        let water_ele_index = string::index_of(&name, &ele_tag);
+        if (water_ele_index < len) {
+            return string::sub_string(&name, water_ele_index + string::length(&ele_tag), len)
         };
         return string::utf8(b"none")
     }
