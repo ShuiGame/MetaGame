@@ -154,8 +154,8 @@ module shui_module::tree_of_life {
         }
     }
 
-    public(friend) fun extract_drop_items<T: store + drop>(meta:&mut MetaIdentity, name:string::String, num:u64) {
-        let vec:vector<T> = items::extract_items(items, name, num);
+    public(friend) fun extract_drop_items(meta:&mut MetaIdentity, name:string::String, num:u64) {
+        let vec:vector = items::extract_items(items, name, num);
         let (i, len) = (0u64, vector::length(&vec));
         while (i < len) {
             // drop fragments
