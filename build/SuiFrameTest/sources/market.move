@@ -1,5 +1,6 @@
 module shui_module::market {
     use std::string;
+    use sui::object::{UID};
     use sui::kiosk::{Self};
     use shui_module::boat_ticket::{Self};
     use sui::event;
@@ -9,6 +10,8 @@ module shui_module::market {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use shui_module::royalty_policy::{Self};
+    use shui_module::metaIdentity::{MetaIdentity};
+    use shui_module::tree_of_life::{Self};
     use sui::transfer_policy::{
         Self as policy,
         TransferPolicy,
@@ -22,7 +25,14 @@ module shui_module::market {
         name:string::String,
         index: u64,
         owner:address,
-        price:u64
+        price:u64,
+        num:u64
+    }
+
+    struct GameItemsCredential has key, store {
+        id: UID,
+        name: string::String,
+        num: u64
     }
 
     struct ItemWithdrew has copy, drop  {
@@ -31,7 +41,35 @@ module shui_module::market {
         reason:string::String
     }
 
-    public fun place_and_list_nft(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
+    public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext) {
+        // extract and drop items
+        tree_of_life::extract_drop_items(meta, name, num);
+
+        // create virtual nft credential
+        let virtualCredential = GameItemsCredential {
+            id: object::new(ctx),
+            name: name,
+            num: num
+        };
+
+        // list_to_market
+        let (kiosk, cap) = kiosk::new(ctx);
+        kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);        
+        event::emit(
+            ItemListed {
+                kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
+                name: name,
+                num: num,
+                index: 0,
+                owner: tx_context::sender(ctx),
+                price: total_price
+            }
+        );
+        transfer::public_transfer(cap, tx_context::sender(ctx));
+        transfer::public_transfer(kiosk, tx_context::sender(ctx));
+    }
+
+    public fun place_and_list_boat_ticket(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
         // todo:bind everycount to an certain kiosk
         let (kiosk, cap) = kiosk::new(ctx);
         let index = boat_ticket::get_index(&item);
@@ -42,11 +80,31 @@ module shui_module::market {
                 name: string::utf8(b"starship summons"),
                 index: index,
                 owner: tx_context::sender(ctx),
-                price: price
+                price: price,
+                num: 1
             }
         );
         transfer::public_transfer(cap, tx_context::sender(ctx));
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
+    }
+
+    public fun buy_game_items(meta:&mut MetaIdentity, policy: &mut TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
+        let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
+        let royalty_pay = coin::zero<SUI>(ctx);
+        royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
+        coin::destroy_zero(royalty_pay);
+        policy::confirm_request(policy, transferRequst);
+        let GameItemsCredential {id, name, num} = gameCredential;
+        object::delete(id);
+
+        // create and add to items
+        tree_of_life::fill_items(meta, name, num);
+        event::emit(
+            ItemWithdrew {
+                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
+                reason:string::utf8(b"withdrew")
+            }
+        );
     }
 
     // todo:how to pre get the kiosk price before calling the purchase function

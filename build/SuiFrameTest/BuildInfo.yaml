@@ -13,19 +13,19 @@ compiled_package_info:
     shui_module: "0000000000000000000000000000000000000000000000000000000000000000"
     std: "0000000000000000000000000000000000000000000000000000000000000001"
     sui: "0000000000000000000000000000000000000000000000000000000000000002"
-  source_digest: 1FAED01439B4883263818D32E775CF86B79F9A04812DAEBA12A982FB22E7DBFB
+  source_digest: 825C27451EB36FD9FFACCA06C8F3EB3ACE2E1BD8683DA0DA33EB95452472F23B
   build_flags:
-    dev_mode: false
-    test_mode: false
+    dev_mode: true
+    test_mode: true
     generate_docs: false
     generate_abis: false
     install_dir: ~
     force_recompilation: false
-    lock_file: ".\\Move.lock"
+    lock_file: ~
     additional_named_addresses: {}
     fetch_deps_only: false
-    skip_fetch_latest_git_deps: true
-    default_flavor: sui
+    skip_fetch_latest_git_deps: false
+    default_flavor: ~
     default_edition: ~
 dependencies:
   - MoveStdlib
