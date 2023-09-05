@@ -18,7 +18,7 @@ module shui_module::items {
     const ERR_ITEMS_NOT_EXIST:u64 = 0x002;
     const ERR_ITEMS_NOT_ENOUGH:u64 = 0x003;
 
-    struct Items has store {
+    struct Items has key {
         // store all objects: name -> vector<T>
         bags:bag::Bag,
 
@@ -133,9 +133,9 @@ module shui_module::items {
         item
     }
 
-    public(friend) fun extract_items<T:store>(items: &mut Items, name:string::String, num:u64): vector<T> {
+    public(friend) fun extract_items(items: &mut Items, name:string::String, num:u64): vector {
         assert!(bag::contains(&items.bags, name), ERR_ITEMS_VEC_NOT_EXIST);
-        let vec:&mut vector<T> = bag::borrow_mut(&mut items.bags, name);
+        let vec:&mut vector = bag::borrow_mut(&mut items.bags, name);
         assert!(vector::length(vec) >= num, ERR_ITEMS_NOT_ENOUGH);
         let extra_vec = vector::empty();
         let i = 0u64;
