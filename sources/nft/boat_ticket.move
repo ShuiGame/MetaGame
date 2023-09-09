@@ -138,4 +138,8 @@ module shui_module::boat_ticket {
         };
         transfer::share_object(global);
     }
+
+    public fun get_boat_num(global:&BoatTicketGlobal):u64 {
+        global.num
+    }
 }

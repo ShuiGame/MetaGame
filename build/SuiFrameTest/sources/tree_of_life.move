@@ -40,6 +40,7 @@ module shui_module::tree_of_life {
     struct TreeGlobal has key {
         id: UID,
         balance_SHUI: Balance<SHUI>,
+        total_water_amount: u64,
         creator: address,
         water_down_last_time_records: Table<u64, u64>,
         water_down_person_exp_records: Table<u64, u64>,
@@ -73,6 +74,7 @@ module shui_module::tree_of_life {
         let global = TreeGlobal {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
+            total_water_amount: 0,
             creator: tx_context::sender(ctx),
             water_down_last_time_records: table::new<u64, u64>(ctx),
             water_down_person_exp_records: table::new<u64, u64>(ctx),
@@ -84,6 +86,7 @@ module shui_module::tree_of_life {
         let global = TreeGlobal {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
+            total_water_amount: 0,
             creator: tx_context::sender(ctx),
             water_down_last_time_records: table::new<u64, u64>(ctx),
             water_down_person_exp_records: table::new<u64, u64>(ctx),
@@ -104,6 +107,7 @@ module shui_module::tree_of_life {
         // interval time should be greater than 1 days
         let amount = 1;
         let now = clock::timestamp_ms(clock);
+        global.total_water_amount = global.total_water_amount + amount;
         if (table::contains(&global.water_down_last_time_records, metaIdentity::get_meta_id(meta))) {
             let lastWaterDownTime = table::borrow_mut(&mut global.water_down_last_time_records, metaIdentity::get_meta_id(meta));
             assert!((now - *lastWaterDownTime) > 15 * SECONDS_IN_MILLS, ERR_INTERVAL_TIME_ONE_DAY);
@@ -483,5 +487,9 @@ module shui_module::tree_of_life {
         } else {
             0
         }
+    }
+
+    public fun get_total_water_down_amount(global:&TreeGlobal):u64 {
+        global.total_water_amount
     }
 }
