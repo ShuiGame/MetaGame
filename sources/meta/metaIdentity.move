@@ -43,6 +43,7 @@ module shui_module::metaIdentity {
     struct MetaInfoGlobal has key{
         id:UID,
         creator: address,
+        total_players: u64,
 
         // 0-9999
         meta_alpha_count:u64,
@@ -76,6 +77,7 @@ module shui_module::metaIdentity {
         let global = MetaInfoGlobal {
             id: object::new(ctx),
             creator:@account,
+            total_players: 0,
             meta_alpha_count: 0,
             meta_beta_count:0,
             meta_common_user_count:0,
@@ -93,6 +95,7 @@ module shui_module::metaIdentity {
         let global = MetaInfoGlobal {
             id: object::new(ctx),
             creator:@account,
+            total_players: 0,
             meta_alpha_count: 0,
             meta_beta_count:0,
             meta_common_user_count:0,
@@ -137,6 +140,7 @@ module shui_module::metaIdentity {
                 email: email
             }
         );
+        global.total_players = global.total_players + 1;
     }
 
     fun generateUid(global: &mut MetaInfoGlobal, addr:address):u64 {
@@ -271,5 +275,9 @@ module shui_module::metaIdentity {
 
     public fun get_meta_name(meta: &MetaIdentity): string::String {
         *&meta.name
+    }
+
+    public fun get_total_players(global:&MetaInfoGlobal): u64 {
+        global.total_players
     }
 }
