@@ -42,6 +42,8 @@ module shui_module::airdrop_test {
     const HOUR_IN_MS: u64 = 3_600_000;
     const START:u64 = 80000;
 
+    struct OTW has drop {}
+
     // utilities
     fun scenario(): Scenario { begin(@account) }
 
@@ -230,6 +232,11 @@ module shui_module::airdrop_test {
         // boat_ticket market test
         next_tx(test, admin);
         {
+            let scenario = scenario();
+            let publisher = package::test_claim(OTW {}, ctx(test));
+
+            royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(&mut publisher, 0, ctx(test));
+
             let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
             boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
             next_epoch(test, admin);
