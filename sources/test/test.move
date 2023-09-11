@@ -24,6 +24,8 @@ module shui_module::airdrop_test {
     use sui::pay;
     use shui_module::items::{Self};
     use shui_module::shui::{Self};
+    use sui::package;
+    use shui_module::royalty_policy;
     use shui_module::metaIdentity::{Self};
     use shui_module::airdrop::{Self};
     use shui_module::founder_team_reserve::{Self};
@@ -232,7 +234,6 @@ module shui_module::airdrop_test {
         // boat_ticket market test
         next_tx(test, admin);
         {
-            let scenario = scenario();
             let publisher = package::test_claim(OTW {}, ctx(test));
 
             royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(&mut publisher, 0, ctx(test));
@@ -242,7 +243,7 @@ module shui_module::airdrop_test {
             next_epoch(test, admin);
             let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
             let addr = object::id_address(&ticket);
-            market::place_and_list_boat_ticket(ticket, 20, ctx(test));
+            market::place_and_list_boat_ticket(ticket, 1, ctx(test));
             next_epoch(test, admin);
 
             let policy = take_shared(test);
@@ -260,7 +261,7 @@ module shui_module::airdrop_test {
             return_shared(policy);
                 // return_to_sender(test, cap);
             next_epoch(test, admin);
-
+            package::burn_publisher(publisher);
             // let kiosk = take_from_sender<kiosk::Kiosk>(test);
             // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
             // market::close_and_withdraw(kiosk, cap, ctx(test));
@@ -274,7 +275,7 @@ module shui_module::airdrop_test {
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             let name = string::utf8(b"fruit");   
             let num = 12;
-            let addr = market::place_and_list_game_items(&mut meta, 20, name, num, ctx(test));
+            let addr = market::place_and_list_game_items(&mut meta, 1, name, num, ctx(test));
             return_to_sender(test, meta);
 
             next_epoch(test,admin);

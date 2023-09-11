@@ -13,6 +13,7 @@ module shui_module::market {
     use std::vector;
     use shui_module::royalty_policy::{Self};
     use shui_module::metaIdentity::{MetaIdentity};
+    use std::debug::print;
     use shui_module::tree_of_life::{Self};
     use sui::transfer_policy::{
         Self as policy,
@@ -119,6 +120,7 @@ module shui_module::market {
         let id = object::id_from_address(addr);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
+        print(&merged_coin);
         let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, merged_coin);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
