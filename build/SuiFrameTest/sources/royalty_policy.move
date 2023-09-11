@@ -43,7 +43,7 @@ module shui_module::royalty_policy {
     }
 
     public fun pay<BoatTicket>(
-        policy: &mut TransferPolicy<BoatTicket>,
+        policy: &TransferPolicy<BoatTicket>,
         request: &mut TransferRequest<BoatTicket>,
         payment: &mut Coin<SUI>,
         ctx: &mut TxContext

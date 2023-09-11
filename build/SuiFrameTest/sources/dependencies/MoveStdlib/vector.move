@@ -165,7 +165,6 @@ module std::vector {
             i = i + 1
         }
     }
-    
     spec insert {
         pragma intrinsic = true;
     }

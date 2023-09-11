@@ -9,6 +9,8 @@ module shui_module::market {
     use sui::object::{Self, ID};
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
+    use sui::pay;
+    use std::vector;
     use shui_module::royalty_policy::{Self};
     use shui_module::metaIdentity::{MetaIdentity};
     use shui_module::tree_of_life::{Self};
@@ -25,6 +27,7 @@ module shui_module::market {
         name:string::String,
         index: u64,
         owner:address,
+        item_id: address,
         price:u64,
         num:u64
     }
@@ -54,17 +57,18 @@ module shui_module::market {
         let addr = object::id_address(&virtualCredential);
         // list_to_market
         let (kiosk, cap) = kiosk::new(ctx);
-        kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);        
         event::emit(
             ItemListed {
                 kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
                 name: name,
                 num: num,
                 index: 0,
+                item_id: object::id_address(&virtualCredential),
                 owner: tx_context::sender(ctx),
                 price: total_price
             }
         );
+        kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);       
         transfer::public_transfer(cap, tx_context::sender(ctx));
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
         addr
@@ -74,7 +78,7 @@ module shui_module::market {
         // todo:bind everycount to an certain kiosk
         let (kiosk, cap) = kiosk::new(ctx);
         let index = boat_ticket::get_index(&item);
-        kiosk::place_and_list(&mut kiosk, &cap, item, price);
+
         event::emit(
             ItemListed {
                 kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
@@ -82,14 +86,16 @@ module shui_module::market {
                 index: index,
                 owner: tx_context::sender(ctx),
                 price: price,
+                item_id: object::id_address(&item),
                 num: 1
             }
         );
+        kiosk::place_and_list(&mut kiosk, &cap, item, price);
         transfer::public_transfer(cap, tx_context::sender(ctx));
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
     }
 
-    public fun buy_game_items(meta:&mut MetaIdentity, policy: &mut TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
+    public fun buy_game_items(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
         let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
@@ -109,8 +115,11 @@ module shui_module::market {
     }
 
     // todo:how to pre get the kiosk price before calling the purchase function
-    public fun buy_nft(policy: &mut TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
-        let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, payment);
+    public fun buy_nft(policy: &TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
+        let id = object::id_from_address(addr);
+        let merged_coin = vector::pop_back(&mut coins);
+        pay::join_vec(&mut merged_coin, coins);
+        let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, merged_coin);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
         coin::destroy_zero(royalty_pay);
