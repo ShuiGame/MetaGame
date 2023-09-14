@@ -40,6 +40,14 @@ module shui_module::market {
         num: u64
     }
 
+    struct ItemPurchased has copy, drop {
+        owner: address,
+        buyer: address,
+        name: string,
+        num: u64,
+        price: u64
+    }
+
     struct ItemWithdrew has copy, drop  {
         kioskId:vector<u8>,
         // purchased / withdrew
@@ -123,17 +131,21 @@ module shui_module::market {
         pay::join_vec(&mut merged_coin, coins);
         print(&merged_coin);
         let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, merged_coin);
+        event::emit(
+            ItemPurchased {
+                owner: kiosk::owner(&kiosk),
+                buyer: address,
+                name: boat_ticket::get_name(&nft),
+                num: 1,
+                price: ????// 卡这了
+            }
+        );
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
         coin::destroy_zero(royalty_pay);
         policy::confirm_request(policy, transferRequst);
         transfer::public_transfer(nft, tx_context::sender(ctx));
-        event::emit(
-            ItemWithdrew {
-                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
-                reason:string::utf8(b"withdrew")
-            }
-        );
+        
     }
 
     public fun take_and_transfer_boat_ticket(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {

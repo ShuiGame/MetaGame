@@ -40,6 +40,10 @@ module shui_module::boat_ticket {
         ticket.index
     }
 
+    public fun get_name(ticket: &BoatTicket): String {
+        ticket.name
+    }
+
     public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let recepient = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
@@ -56,7 +60,7 @@ module shui_module::boat_ticket {
         };
         let ticket = BoatTicket {
             id:object::new(ctx),
-            name:utf8(b""),
+            name:utf8(b"Shui Meta Ticket"),
             index:global.num,
             whitelist_claimed: false
         };
