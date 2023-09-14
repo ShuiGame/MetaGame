@@ -76,7 +76,6 @@ module shui_module::market {
     }
 
     public fun place_and_list_boat_ticket(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
-        // todo:bind everycount to an certain kiosk
         let (kiosk, cap) = kiosk::new(ctx);
         let index = boat_ticket::get_index(&item);
 
@@ -96,7 +95,7 @@ module shui_module::market {
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
     }
 
-    public fun buy_game_items(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
+    public fun buy_gamefis(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, id:ID, payment:Coin<SUI>, ctx: &mut TxContext) {
         let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
@@ -115,8 +114,7 @@ module shui_module::market {
         );
     }
 
-    // todo:how to pre get the kiosk price before calling the purchase function
-    public fun buy_nft(policy: &TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
+    public fun buy_boat_ticket(policy: &TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
         let id = object::id_from_address(addr);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
@@ -135,12 +133,12 @@ module shui_module::market {
         );
     }
 
-    public fun take_and_transfer(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
+    public fun take_and_transfer_boat_ticket(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
         let nft = kiosk::take<boat_ticket::BoatTicket>(kiosk, cap, object::id_from_address(item));
         transfer::public_transfer(nft, tx_context::sender(ctx));
     }
 
-    public fun take_and_transfer_items(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, meta:&mut MetaIdentity, virtual_item: address, ctx: &mut TxContext) {
+    public fun take_and_transfer_gamefis(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, meta:&mut MetaIdentity, virtual_item: address, ctx: &mut TxContext) {
         let gameCredential = kiosk::take<GameItemsCredential>(kiosk, cap, object::id_from_address(virtual_item));
         let GameItemsCredential {id, name, num} = gameCredential;
         object::delete(id);

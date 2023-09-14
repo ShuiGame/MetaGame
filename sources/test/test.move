@@ -181,7 +181,7 @@ module shui_module::airdrop_test {
 
             let kiosk = take_from_sender<kiosk::Kiosk>(test);
             let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
+            market::take_and_transfer_boat_ticket(&mut kiosk, &cap, addr, ctx(test));
             return_to_sender(test, kiosk);
             return_to_sender(test, cap);
 
@@ -253,7 +253,7 @@ module shui_module::airdrop_test {
             
             let coins = vector::empty<coin::Coin<SUI>>();
             vector::push_back(&mut coins, payment);
-            market::buy_nft(&policy, &mut kiosk, addr, coins , ctx(test));
+            market::buy_boat_ticket(&policy, &mut kiosk, addr, coins , ctx(test));
 
             // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
             // market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
@@ -290,7 +290,7 @@ module shui_module::airdrop_test {
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             let kiosk = take_from_sender<kiosk::Kiosk>(test);
             let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::take_and_transfer_items(&mut kiosk, &cap, &mut meta, addr, ctx(test));
+            market::take_and_transfer_gamefis(&mut kiosk, &cap, &mut meta, addr, ctx(test));
             return_to_sender(test, kiosk);
             return_to_sender(test, cap);
             return_to_sender(test, meta);
