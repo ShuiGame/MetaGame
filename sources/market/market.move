@@ -114,15 +114,18 @@ module shui_module::market {
         policy::confirm_request(policy, transferRequst);
         let GameItemsCredential {id, name, num} = gameCredential;
         object::delete(id);
-
-        // create and add to items
-        tree_of_life::fill_items(meta, name, num);
         event::emit(
-            ItemWithdrew {
-                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
-                reason:string::utf8(b"withdrew")
+            ItemPurchased {
+                owner: kiosk::owner(&kiosk),
+                buyer: address,
+                name: name,
+                num: num,
+                price: ????// 卡这了
             }
         );
+        // create and add to items
+        tree_of_life::fill_items(meta, name, num);
+        
     }
 
     public fun buy_boat_ticket(policy: &TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
