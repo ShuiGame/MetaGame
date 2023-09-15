@@ -41,6 +41,7 @@ module shui_module::market {
     }
 
     struct ItemPurchased has copy, drop {
+        kiosk_id: address,
         owner: address,
         buyer: address,
         name: string,
@@ -116,11 +117,11 @@ module shui_module::market {
         object::delete(id);
         event::emit(
             ItemPurchased {
+                kiosk_id: object::id_address(&kiosk),
                 owner: kiosk::owner(&kiosk),
                 buyer: address,
                 name: name,
                 num: num,
-                price: ????// 卡这了
             }
         );
         // create and add to items
@@ -134,13 +135,14 @@ module shui_module::market {
         pay::join_vec(&mut merged_coin, coins);
         print(&merged_coin);
         let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, merged_coin);
+        let price = dynamic_field::kiosk::
         event::emit(
             ItemPurchased {
+                kiosk_id: object::id_address(&kiosk),
                 owner: kiosk::owner(&kiosk),
                 buyer: address,
                 name: boat_ticket::get_name(&nft),
                 num: 1,
-                price: ????// 卡这了
             }
         );
         let royalty_pay = coin::zero<SUI>(ctx);
