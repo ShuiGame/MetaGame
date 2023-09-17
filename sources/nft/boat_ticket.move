@@ -12,7 +12,6 @@ module shui_module::boat_ticket {
     use sui::pay;
     use shui_module::royalty_policy::{Self};
 
-    const NAME: vector<u8> = b"BoatTicket#";
     const DEFAULT_LINK: vector<u8> = b"https://shui.one";
     const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeibzoi4kzr4gg75zhso5jespxnwespyfyakemrwibqorjczkn23vpi.ipfs.nftstorage.link/NFT-CARD1.png";
     const DESCRIPTION: vector<u8> = b"Boat ticket to meta masrs";
