@@ -9,11 +9,14 @@ module shui_module::market {
     use sui::object::{Self, ID};
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
+    use std::string::{String, utf8};
+    use sui::package;
     use sui::pay;
     use std::vector;
     use shui_module::royalty_policy::{Self};
     use shui_module::metaIdentity::{MetaIdentity};
     use std::debug::print;
+    use sui::display;
     use shui_module::tree_of_life::{Self};
     use sui::transfer_policy::{
         Self as policy,
@@ -23,6 +26,14 @@ module shui_module::market {
         remove_rule
     };
 
+    const DEFAULT_LINK: vector<u8> = b"https://shui.one";
+    const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeibzoi4kzr4gg75zhso5jespxnwespyfyakemrwibqorjczkn23vpi.ipfs.nftstorage.link/NFT-CARD1.png";
+    const DESCRIPTION: vector<u8> = b"Boat ticket to meta masrs";
+    const PROJECT_URL: vector<u8> = b"https://shui.one/game/#/";
+    const CREATOR: vector<u8> = b"metaGame";
+
+    struct MARKET has drop {}
+    
     struct ItemListed has copy, drop {
         kioskId:vector<u8>,
         name:string::String,
@@ -44,6 +55,47 @@ module shui_module::market {
         kioskId:vector<u8>,
         // purchased / withdrew
         reason:string::String
+    }
+    
+    fun init(otw: MARKET, ctx: &mut TxContext) {
+        let keys = vector[
+            // A name for the object. The name is displayed when users view the object.
+            utf8(b"name"),
+            // A description for the object. The description is displayed when users view the object.
+            utf8(b"description"),
+            // A link to the object to use in an application.
+            utf8(b"link"),
+            // A URL or a blob with the image for the object.
+            utf8(b"image_url"),
+            // A link to a website associated with the object or creator.
+            utf8(b"project_url"),
+            // A string that indicates the object creator.
+            utf8(b"creator")
+        ];
+        let values = vector[
+            utf8(b"{name}"),
+            utf8(DESCRIPTION),
+            utf8(DEFAULT_LINK),
+            utf8(DEFAULT_IMAGE_URL),
+            utf8(PROJECT_URL),
+            utf8(CREATOR)
+        ];
+
+        // Claim the `Publisher` for the package!
+        let publisher = package::claim(otw, ctx);
+
+        // Get a new `Display` object for the `SuiCat` type.
+        let display = display::new_with_fields<GameItemsCredential>(
+            &publisher, keys, values, ctx
+        );
+        
+        // set 0% royalty
+        royalty_policy::new_royalty_policy<GameItemsCredential>(&publisher, 0, ctx);
+
+        // Commit first version of `Display` to apply changes.
+        display::update_version(&mut display);
+        transfer::public_transfer(publisher, tx_context::sender(ctx));
+        transfer::public_transfer(display, tx_context::sender(ctx));
     }
 
     public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext):address {
