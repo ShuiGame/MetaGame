@@ -23,13 +23,6 @@ module shui_module::market {
         remove_rule
     };
 
-
-    const DEFAULT_LINK: vector<u8> = b"https://shui.one";
-    const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeicis764zsykvopcqtcqytsfz74ai3mwna33xi7qqh74z2f2osyyba.ipfs.nftstorage.link/ibox.png";
-    const DESCRIPTION: vector<u8> = b"gamefi virtual items";
-    const PROJECT_URL: vector<u8> = b"https://shui.one/game/#/";
-    const CREATOR: vector<u8> = b"metaGame";
-
     struct ItemListed has copy, drop {
         kioskId:vector<u8>,
         name:string::String,
@@ -47,62 +40,10 @@ module shui_module::market {
         num: u64
     }
 
-    struct ItemPurchased has copy, drop {
-        kiosk_id: address,
-        owner: address,
-        buyer: address,
-        name: string,
-        num: u64,
-        price: u64
-    }
-
     struct ItemWithdrew has copy, drop  {
         kioskId:vector<u8>,
         // purchased / withdrew
         reason:string::String
-    }
-
-    fun init(otw: MARKET, ctx: &mut TxContext) {
-        // https://docs.sui.io/build/sui-object-display
-
-        let keys = vector[
-            // A name for the object. The name is displayed when users view the object.
-            utf8(b"name"),
-            // A description for the object. The description is displayed when users view the object.
-            utf8(b"description"),
-            // A link to the object to use in an application.
-            utf8(b"link"),
-            // A URL or a blob with the image for the object.
-            utf8(b"image_url"),
-            // A link to a website associated with the object or creator.
-            utf8(b"project_url"),
-            // A string that indicates the object creator.
-            utf8(b"creator")
-        ];
-        let values = vector[
-            utf8(b"{name}"),
-            utf8(DESCRIPTION),
-            utf8(DEFAULT_LINK),
-            utf8(DEFAULT_IMAGE_URL),
-            utf8(PROJECT_URL),
-            utf8(CREATOR)
-        ];
-
-        // Claim the `Publisher` for the package!
-        let publisher = package::claim(otw, ctx);
-
-        // Get a new `Display` object for the `SuiCat` type.
-        let display = display::new_with_fields<GameItemsCredential>(
-            &publisher, keys, values, ctx
-        );
-
-        // set 0% royalty
-        royalty_policy::new_royalty_policy<GameItemsCredential>(&publisher, 0, ctx);
-
-        // Commit first version of `Display` to apply changes.
-        display::update_version(&mut display);
-        transfer::public_transfer(publisher, sender(ctx));
-        transfer::public_transfer(display, sender(ctx));
     }
 
     public fun place_and_list_game_items(meta:&mut MetaIdentity, total_price: u64, name:string::String, num:u64, ctx: &mut TxContext):address {
@@ -127,7 +68,7 @@ module shui_module::market {
                 item_id: object::id_address(&virtualCredential),
                 owner: tx_context::sender(ctx),
                 price: total_price,
-                kioskcap: object::id_address(&cap);
+                kioskcap: object::id_address(&cap)
             }
         );
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);       
@@ -149,7 +90,7 @@ module shui_module::market {
                 price: price,
                 item_id: object::id_address(&item),
                 num: 1,
-                kisokcap: object::id_address(&cap),
+                kioskcap: object::id_address(&cap),
             }
         );
         kiosk::place_and_list(&mut kiosk, &cap, item, price);
@@ -165,18 +106,15 @@ module shui_module::market {
         policy::confirm_request(policy, transferRequst);
         let GameItemsCredential {id, name, num} = gameCredential;
         object::delete(id);
-        event::emit(
-            ItemPurchased {
-                kiosk_id: object::id_address(&kiosk),
-                owner: kiosk::owner(&kiosk),
-                buyer: address,
-                name: name,
-                num: num,
-            }
-        );
+
         // create and add to items
         tree_of_life::fill_items(meta, name, num);
-        
+        event::emit(
+            ItemWithdrew {
+                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
+                reason:string::utf8(b"withdrew")
+            }
+        );
     }
 
     public fun buy_boat_ticket(policy: &TransferPolicy<boat_ticket::BoatTicket>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
@@ -185,22 +123,17 @@ module shui_module::market {
         pay::join_vec(&mut merged_coin, coins);
         print(&merged_coin);
         let (nft, transferRequst) = kiosk::purchase<boat_ticket::BoatTicket>(kiosk, id, merged_coin);
-        let price = dynamic_field::kiosk::
-        event::emit(
-            ItemPurchased {
-                kiosk_id: object::id_address(&kiosk),
-                owner: kiosk::owner(&kiosk),
-                buyer: address,
-                name: boat_ticket::get_name(&nft),
-                num: 1,
-            }
-        );
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
         coin::destroy_zero(royalty_pay);
         policy::confirm_request(policy, transferRequst);
         transfer::public_transfer(nft, tx_context::sender(ctx));
-        
+        event::emit(
+            ItemWithdrew {
+                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
+                reason:string::utf8(b"withdrew")
+            }
+        );
     }
 
     public fun take_and_transfer_boat_ticket(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {

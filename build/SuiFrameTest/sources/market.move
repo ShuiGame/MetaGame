@@ -30,7 +30,8 @@ module shui_module::market {
         owner:address,
         item_id: address,
         price:u64,
-        num:u64
+        num:u64,
+        kioskcap: address
     }
 
     struct GameItemsCredential has key, store {
@@ -66,7 +67,8 @@ module shui_module::market {
                 index: 0,
                 item_id: object::id_address(&virtualCredential),
                 owner: tx_context::sender(ctx),
-                price: total_price
+                price: total_price,
+                kioskcap: object::id_address(&cap)
             }
         );
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);       
@@ -87,7 +89,8 @@ module shui_module::market {
                 owner: tx_context::sender(ctx),
                 price: price,
                 item_id: object::id_address(&item),
-                num: 1
+                num: 1,
+                kioskcap: object::id_address(&cap),
             }
         );
         kiosk::place_and_list(&mut kiosk, &cap, item, price);

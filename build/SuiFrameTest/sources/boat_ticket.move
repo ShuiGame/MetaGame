@@ -12,7 +12,6 @@ module shui_module::boat_ticket {
     use sui::pay;
     use shui_module::royalty_policy::{Self};
 
-    const NAME: vector<u8> = b"BoatTicket#";
     const DEFAULT_LINK: vector<u8> = b"https://shui.one";
     const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeibzoi4kzr4gg75zhso5jespxnwespyfyakemrwibqorjczkn23vpi.ipfs.nftstorage.link/NFT-CARD1.png";
     const DESCRIPTION: vector<u8> = b"Boat ticket to meta masrs";
@@ -40,6 +39,10 @@ module shui_module::boat_ticket {
         ticket.index
     }
 
+    public fun get_name(ticket: &BoatTicket): String {
+        ticket.name
+    }
+
     public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
         let recepient = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
@@ -56,7 +59,7 @@ module shui_module::boat_ticket {
         };
         let ticket = BoatTicket {
             id:object::new(ctx),
-            name:utf8(b""),
+            name:utf8(b"Shui Meta Ticket"),
             index:global.num,
             whitelist_claimed: false
         };

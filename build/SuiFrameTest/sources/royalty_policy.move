@@ -11,7 +11,6 @@ module shui_module::royalty_policy {
     };
     use sui::package::Publisher;
     use sui::transfer;
-    use shui_module::boat_ticket::BoatTicket;
 
     struct Rule has drop {}
 
@@ -21,30 +20,30 @@ module shui_module::royalty_policy {
     }
 
     // every transaction has to pay amount_bp to somebody
-    public fun new_royalty_policy<BoatTicket>(
+    public fun new_royalty_policy<T:key + store>(
         publisher: &Publisher,
         amount_bp: u16,
         ctx: &mut TxContext
     ) {
-        let (policy, cap) = policy::new<BoatTicket>(publisher, ctx);
-        set<BoatTicket>(&mut policy, &cap, amount_bp);
+        let (policy, cap) = policy::new<T>(publisher, ctx);
+        set<T>(&mut policy, &cap, amount_bp);
         transfer::public_share_object(policy);
         transfer::public_transfer(cap, sender(ctx));
     }
 
     // pay to beneficial
-    public fun set<BoatTicket>(
-        policy: &mut TransferPolicy<BoatTicket>,
-        cap: &TransferPolicyCap<BoatTicket>,
+    public fun set<T:key + store>(
+        policy: &mut TransferPolicy<T>,
+        cap: &TransferPolicyCap<T>,
         amount_bp: u16
     ) {
         assert!(amount_bp < 10000, 0x02);
         policy::add_rule(Rule {}, policy, cap, Config { amount_bp, beneficiary: @account })
     }
 
-    public fun pay<BoatTicket>(
-        policy: &TransferPolicy<BoatTicket>,
-        request: &mut TransferRequest<BoatTicket>,
+    public fun pay<T:key + store>(
+        policy: &TransferPolicy<T>,
+        request: &mut TransferRequest<T>,
         payment: &mut Coin<SUI>,
         ctx: &mut TxContext
     ) {
