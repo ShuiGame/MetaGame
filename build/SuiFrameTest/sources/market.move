@@ -150,9 +150,11 @@ module shui_module::market {
         transfer::public_transfer(kiosk, tx_context::sender(ctx));
     }
 
-    public fun buy_gamefis(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, addr:address, payment:Coin<SUI>, ctx: &mut TxContext) {
+    public fun buy_gamefis(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
         let id = object::id_from_address(addr);
-        let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, payment);
+        let merged_coin = vector::pop_back(&mut coins);
+        pay::join_vec(&mut merged_coin, coins);
+        let (gameCredential, transferRequst) = kiosk::purchase<GameItemsCredential>(kiosk, id, merged_coin);
         let royalty_pay = coin::zero<SUI>(ctx);
         royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
         coin::destroy_zero(royalty_pay);
