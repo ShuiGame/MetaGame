@@ -51,10 +51,12 @@ module shui_module::market {
         num: u64
     }
 
-    struct ItemWithdrew has copy, drop  {
+    struct ItemPurchased has copy, drop  {
         kioskId:vector<u8>,
-        // purchased / withdrew
-        reason:string::String
+        owner:address,
+        buyer:address,
+        name:string::String,
+        num:u64
     }
     
     fun init(otw: MARKET, ctx: &mut TxContext) {
@@ -165,9 +167,12 @@ module shui_module::market {
         // create and add to items
         tree_of_life::fill_items(meta, name, num);
         event::emit(
-            ItemWithdrew {
+            ItemPurchased {
                 kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
-                reason:string::utf8(b"withdrew")
+                owner:kiosk::owner(kiosk),
+                buyer:tx_context::sender(ctx),
+                name:name,
+                num:num
             }
         );
     }
@@ -184,9 +189,12 @@ module shui_module::market {
         policy::confirm_request(policy, transferRequst);
         transfer::public_transfer(nft, tx_context::sender(ctx));
         event::emit(
-            ItemWithdrew {
+            ItemPurchased {
                 kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
-                reason:string::utf8(b"withdrew")
+                owner:kiosk::owner(kiosk),
+                buyer:tx_context::sender(ctx),
+                name:string::utf8(b"starship summons"),
+                num:1
             }
         );
     }
@@ -204,12 +212,6 @@ module shui_module::market {
     }
 
     public fun close_and_withdraw(kiosk: kiosk::Kiosk, cap: kiosk::KioskOwnerCap, ctx: &mut TxContext) {
-        event::emit(
-            ItemWithdrew {
-                kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
-                reason:string::utf8(b"close")
-            }
-        );
         let sui = kiosk::close_and_withdraw(kiosk, cap, ctx);
         transfer::public_transfer(sui, tx_context::sender(ctx));
     }
