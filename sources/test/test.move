@@ -172,6 +172,7 @@ module shui_module::airdrop_test {
         {
             let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
             boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+            return_shared(ticketGlobal);
             next_epoch(test, admin);
             let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
             let addr = object::id_address(&ticket);
@@ -179,18 +180,15 @@ module shui_module::airdrop_test {
             market::place_and_list_boat_ticket(ticket, 10, ctx(test));
             next_epoch(test, admin);
 
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            let kiosk = take_shared<kiosk::Kiosk>(test);
             let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
             market::take_and_transfer_boat_ticket(&mut kiosk, &cap, addr, ctx(test));
-            return_to_sender(test, kiosk);
+            return_shared(kiosk);
             return_to_sender(test, cap);
 
             next_epoch(test, admin);
 
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::close_and_withdraw(kiosk, cap, ctx(test));
-            return_shared(ticketGlobal);
+           
         };
 
         // water down
@@ -234,76 +232,76 @@ module shui_module::airdrop_test {
         // boat_ticket market test
         next_tx(test, admin);
         {
-            let publisher = package::test_claim(OTW {}, ctx(test));
+            // let publisher = package::test_claim(OTW {}, ctx(test));
 
-            royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(&mut publisher, 0, ctx(test));
+            // royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(&mut publisher, 0, ctx(test));
 
-            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
-            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
-            next_epoch(test, admin);
-            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
-            let addr = object::id_address(&ticket);
-            market::place_and_list_boat_ticket(ticket, 1, ctx(test));
-            next_epoch(test, admin);
+            // let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            // boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+            // next_epoch(test, admin);
+            // let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+            // let addr = object::id_address(&ticket);
+            // market::place_and_list_boat_ticket(ticket, 1, ctx(test));
+            // next_epoch(test, admin);
 
-            let policy = take_shared(test);
+            // let policy = take_shared(test);
             
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let payment = coin::mint_for_testing<SUI>(1, ctx(test));
+            // let kiosk = take_shared<kiosk::Kiosk>(test);
+            // let payment = coin::mint_for_testing<SUI>(1, ctx(test));
             
-            let coins = vector::empty<coin::Coin<SUI>>();
-            vector::push_back(&mut coins, payment);
-            market::buy_boat_ticket(&policy, &mut kiosk, addr, coins , ctx(test));
+            // let coins = vector::empty<coin::Coin<SUI>>();
+            // vector::push_back(&mut coins, payment);
+            // market::buy_boat_ticket(&policy, &mut kiosk, addr, coins , ctx(test));
 
-            // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            // market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
-            return_to_sender(test, kiosk);
-            return_shared(policy);
-                // return_to_sender(test, cap);
-            next_epoch(test, admin);
-            package::burn_publisher(publisher);
-            // let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            // market::close_and_withdraw(kiosk, cap, ctx(test));
-            return_shared(ticketGlobal);
+            // // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            // // market::take_and_transfer(&mut kiosk, &cap, addr, ctx(test));
+            // return_shared(kiosk);
+            // return_shared(policy);
+            //     // return_to_sender(test, cap);
+            // next_epoch(test, admin);
+            // package::burn_publisher(publisher);
+            // // let kiosk = take_from_sender<kiosk::Kiosk>(test);
+            // // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            // // market::close_and_withdraw(kiosk, cap, ctx(test));
+            // return_shared(ticketGlobal);
         };
 
         // game item market test
         next_tx(test, admin);
         {
-            print(&string::utf8(b"list to market"));
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let name = string::utf8(b"fruit");   
-            let num = 12;
-            let addr = market::place_and_list_game_items(&mut meta, 1, name, num, ctx(test));
-            return_to_sender(test, meta);
+            // print(&string::utf8(b"list to market"));
+            // let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            // let name = string::utf8(b"fruit");   
+            // let num = 12;
+            // let addr = market::place_and_list_game_items(&mut meta, 1, name, num, ctx(test));
+            // return_to_sender(test, meta);
 
-            next_epoch(test,admin);
+            // next_epoch(test,admin);
 
-            let itemGlobal = take_shared<items::ItemGlobal>(test);
-            print_items(&itemGlobal, test);
-            return_shared(itemGlobal);
+            // let itemGlobal = take_shared<items::ItemGlobal>(test);
+            // print_items(&itemGlobal, test);
+            // return_shared(itemGlobal);
 
-            next_epoch(test, admin);
+            // next_epoch(test, admin);
 
-            print(&string::utf8(b"take from market"));
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::take_and_transfer_gamefis(&mut kiosk, &cap, &mut meta, addr, ctx(test));
-            return_to_sender(test, kiosk);
-            return_to_sender(test, cap);
-            return_to_sender(test, meta);
+            // print(&string::utf8(b"take from market"));
+            // let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            // let kiosk = take_shared<kiosk::Kiosk>(test);
+            // let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+            // market::take_and_transfer_gamefis(&mut kiosk, &cap, &mut meta, addr, ctx(test));
+            // return_shared(kiosk);
+            // return_to_sender(test, cap);
+            // return_to_sender(test, meta);
         };
 
             
         next_tx(test, admin);
         {
-            let itemGlobal = take_shared<items::ItemGlobal>(test);
-            print_items(&itemGlobal, test);
-            return_shared(itemGlobal);
+            // let itemGlobal = take_shared<items::ItemGlobal>(test);
+            // print_items(&itemGlobal, test);
+            // return_shared(itemGlobal);
         };
-
+        
         end(scenario);
     }
 

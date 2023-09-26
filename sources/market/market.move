@@ -127,7 +127,7 @@ module shui_module::market {
         );
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);       
         transfer::public_transfer(cap, tx_context::sender(ctx));
-        transfer::share_object(kiosk);
+        transfer::public_share_object(kiosk);
         addr
     }
 
@@ -149,7 +149,7 @@ module shui_module::market {
         );
         kiosk::place_and_list(&mut kiosk, &cap, item, price);
         transfer::public_transfer(cap, tx_context::sender(ctx));
-        transfer::share_object(kiosk);
+        transfer::public_share_object(kiosk);
     }
 
     public fun buy_gamefis(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
