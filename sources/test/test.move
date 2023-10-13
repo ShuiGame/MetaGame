@@ -34,6 +34,7 @@ module shui_module::airdrop_test {
     use shui_module::crypto::{Self};
     use shui_module::boat_ticket::{Self};
     use shui_module::market::{Self};
+    use shui_module::mission;
     use sui::object::{Self};
     use sui::kiosk::{Self};
 
@@ -59,16 +60,15 @@ module shui_module::airdrop_test {
 
     fun water_down(test: &mut Scenario, user:address, clock:&clock::Clock) {
         let treeGlobal = take_shared<tree_of_life::TreeGlobal>(test);
+        let missionGlobal = take_shared<mission::MissionGlobal>(test);
         let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
         let coin = take_from_address<Coin<shui::SHUI>>(test, user);
         let coins = vector::empty<Coin<shui::SHUI>>();
         vector::push_back(&mut coins, coin);
-        tree_of_life::water_down(&mut treeGlobal, &mut meta, coins, clock, ctx(test));
-        // let exp = tree_of_life::get_water_down_person_exp(&treeGlobal, user);
-        // print(&string::utf8(b"exp:"));
-        // print(&exp);
+        tree_of_life::water_down(&mut missionGlobal, &mut treeGlobal, &mut meta, coins, clock, ctx(test));
         return_to_sender(test, meta);
         return_shared(treeGlobal);
+        return_shared(missionGlobal);
     }
 
     fun print_items(itemGlobal: &items::ItemGlobal, test: &mut Scenario) {
@@ -144,8 +144,16 @@ module shui_module::airdrop_test {
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
+            mission::init_for_test(ctx(test));
         };
 
+
+        next_tx(test, admin);
+        {
+            let missionGlobal = take_shared<mission::MissionGlobal>(test);
+            mission::init_missions(&mut missionGlobal, ctx(test));
+            return_shared(missionGlobal);
+        };
 
         // register meta
         next_tx(test, admin);
@@ -323,6 +331,13 @@ module shui_module::airdrop_test {
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
+        };
+
+        next_tx(test, admin);
+        {
+            let missionGlobal = take_shared<mission::MissionGlobal>(test);
+            mission::init_missions(&mut missionGlobal, ctx(test));
+            return_shared(missionGlobal);
         };
 
         // funds split

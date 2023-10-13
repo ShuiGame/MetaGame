@@ -12,15 +12,20 @@ module shui_module::mission {
     use sui::pay;
     use sui::clock::{Clock};
     use std::vector;
-    use shui_module::metaIdentity::{MetaIdentity};
+    use shui_module::metaIdentity::{Self, MetaIdentity};
     use std::debug::print;
     use sui::display;
     use shui_module::tree_of_life::{Self};
     use sui::linked_table::{Self, LinkedTable};
     use std::option::{Self};
+    friend shui_module::tree_of_life;
 
     const ERR_MISSION_EXIST:u64 = 0x01;
     const ERR_NO_PERMISSION:u64 = 0x02;
+    const ERR_META_RECORDS_NOT_EXIST:u64 = 0x03;
+    const ERR_MISSION_NOT_EXIST:u64 = 0x04;
+    const ERR_IS_ALREADY_CLAIMED:u64 = 0x05;
+    const ERR_PROGRESS_NOT_REACH:u64 = 0x06;
 
     struct MissionGlobal has key {
         id: UID,
@@ -44,6 +49,7 @@ module shui_module::mission {
         name:String,
         metaId:u64,
         current_process:u64,
+        is_claimed:bool
     }
 
     fun init(ctx: &mut TxContext) {
@@ -75,12 +81,38 @@ module shui_module::mission {
         utf8(b"MissionInfo records")
     }
 
-    public entry fun claim_mission(mission:String, meta:&mut MetaIdentity) {
-        // todo:tbd
-    }
+    public entry fun claim_mission(global: &mut MissionGlobal, mission:String, meta:&mut MetaIdentity) {
+        let mission_records = &mut global.mission_records;
+        assert!(linked_table::contains(mission_records, mission), ERR_MISSION_NOT_EXIST);
+        let mission_info = linked_table::borrow_mut(mission_records, mission);
+        let metaId = metaIdentity::get_meta_id(meta);
+        assert!(table::contains(&mission_info.missions, metaId), ERR_META_RECORDS_NOT_EXIST);
+        let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
+        assert!(!user_record.is_claimed, ERR_IS_ALREADY_CLAIMED);
+        assert!(user_record.current_process >= mission_info.goal_process, ERR_PROGRESS_NOT_REACH);
+        let record = mission_info.reward;
+        // todo: send item
 
-    public(friend) fun add_process(mission:String, meta:&mut MetaIdentity) {
-        // todo:tbd
+        user_record.is_claimed = true;
+    }   
+
+    public(friend) fun add_process(global: &mut MissionGlobal, mission:String, meta:&mut MetaIdentity) {
+        let mission_records = &mut global.mission_records;
+        assert!(linked_table::contains(mission_records, mission), ERR_MISSION_NOT_EXIST);
+        let mission_info = linked_table::borrow_mut(mission_records, mission);
+        let metaId = metaIdentity::get_meta_id(meta);
+        if (!table::contains(&mission_info.missions, metaId)) {
+            let new_record = UserRecord {
+                name:mission,
+                metaId:metaId,
+                current_process:1,
+                is_claimed:false
+            };
+            table::add(&mut mission_info.missions, metaId, new_record);
+        } else {
+            let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
+            user_record.current_process = user_record.current_process + 1;
+        };
     }
 
     public fun init_missions(global: &mut MissionGlobal, ctx:&mut TxContext) {
@@ -97,6 +129,7 @@ module shui_module::mission {
         };
         assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
         linked_table::push_back(&mut global.mission_records, mission1_name, mission1);
+        print(&111);
     }
 
     public entry fun delete_mission(global: &mut MissionGlobal, mission:String, clock:&Clock, ctx:&mut TxContext) {
