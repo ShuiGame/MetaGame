@@ -32,6 +32,7 @@ module shui_module::royalty_policy {
     }
 
     public fun royalty_policy<T:key + store>(
+        // todo: generate every policy for each nft????? uvd
         publisher: &Publisher,
         amount_bp: u16,
         ctx: &mut TxContext

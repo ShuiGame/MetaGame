@@ -53,9 +53,11 @@ module shui_module::airdrop_test {
     fun claim_airdrop(test: &mut Scenario, clock:&clock::Clock) {
         let airdropGlobal = take_shared<airdrop::AirdropGlobal>(test);
         let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-        airdrop::claim_airdrop(&mut airdropGlobal, &meta, clock, ctx(test));
+        let missionGlobal = take_shared<mission::MissionGlobal>(test);
+        airdrop::claim_airdrop(&mut missionGlobal, &mut airdropGlobal, &meta, clock, ctx(test));
         return_to_sender(test, meta);
         return_shared(airdropGlobal);
+        return_shared(missionGlobal);
     }
 
     fun water_down(test: &mut Scenario, user:address, clock:&clock::Clock) {

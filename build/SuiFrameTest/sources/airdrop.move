@@ -4,6 +4,8 @@ module shui_module::airdrop {
     use sui::tx_context::{Self, TxContext};
     use shui_module::shui::{Self};
     use shui_module::metaIdentity::{Self};
+    use shui_module::mission::{Self};
+    use std::string::{utf8};
     use sui::clock::{Self, Clock};
     use sui::coin::{Self};
     use sui::balance::{Self, Balance};
@@ -106,7 +108,7 @@ module shui_module::airdrop {
         table::add(table, recepient, time);
     }
 
-    public entry fun claim_airdrop(info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, clock:&Clock, ctx: &mut TxContext) {
+    public entry fun claim_airdrop(mission_global:&mut mission::MissionGlobal, info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, clock:&Clock, ctx: &mut TxContext) {
         assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
         assert!(info.start > 0, ERR_AIRDROP_NOT_START);
         let now = clock::timestamp_ms(clock);
@@ -129,9 +131,9 @@ module shui_module::airdrop {
         assert!((now - last_claim_time) > 60_000, ERR_HAS_CLAIMED_IN_24HOUR);
         let airdrop_balance = balance::split(&mut info.balance_SHUI, amount);
         let shui = coin::from_balance(airdrop_balance, ctx);
-        
         transfer::public_transfer(shui, tx_context::sender(ctx));
-        record_claim_time(&mut info.daily_claim_records_list, now, user)
+        record_claim_time(&mut info.daily_claim_records_list, now, user);
+        mission::add_process(mission_global, utf8(b"claim airdrop"), meta);
     }
 
     public entry fun start_timing(info:&mut AirdropGlobal, time_cap: TimeCap, clock_object: &Clock) {

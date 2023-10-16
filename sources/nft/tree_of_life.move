@@ -26,11 +26,10 @@ module shui_module::tree_of_life {
     const SECONDS_IN_MILLS: u64 = 1_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
-    const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
-    const ERR_WRONG_TYPE:u64 = 0x003;
-    const ERR_COIN_NOT_ENOUGH:u64 = 0x004;
-    const ERR_INVALID_NAME:u64 = 0x005;
-    const ERR_INVALID_TYPE:u64 = 0x006;
+    const ERR_WRONG_TYPE:u64 = 0x002;
+    const ERR_COIN_NOT_ENOUGH:u64 = 0x003;
+    const ERR_INVALID_NAME:u64 = 0x004;
+    const ERR_INVALID_TYPE:u64 = 0x005;
 
     struct Tree_of_life has key, store {
         id:UID,
@@ -192,7 +191,7 @@ module shui_module::tree_of_life {
         vector::destroy_empty(vec);
     }
 
-    public entry fun swap_fragment<T:store + drop>(meta:&mut MetaIdentity, fragment_type:string::String) {
+    public entry fun swap_fragment<T:store + drop>(mission_global:&mut mission::MissionGlobal, meta:&mut MetaIdentity, fragment_type:string::String) {
         assert!(check_class(&fragment_type), ERR_INVALID_TYPE);
         let items = get_items(meta);
         let fragment_name = string::utf8(b"fragment_");
@@ -212,6 +211,7 @@ module shui_module::tree_of_life {
             name:get_name_by_type(fragment_type, false),
             desc:get_desc_by_type(fragment_type, false)
         });
+        mission::add_process(mission_global, utf8(b"swap water element"), meta);
     }
 
     fun check_class(class: &string::String) : bool {

@@ -19,6 +19,7 @@ module shui_module::mission {
     use sui::linked_table::{Self, LinkedTable};
     use std::option::{Self};
     friend shui_module::tree_of_life;
+    friend shui_module::airdrop;
 
     const ERR_MISSION_EXIST:u64 = 0x01;
     const ERR_NO_PERMISSION:u64 = 0x02;
@@ -96,7 +97,7 @@ module shui_module::mission {
         user_record.is_claimed = true;
     }   
 
-    public(friend) fun add_process(global: &mut MissionGlobal, mission:String, meta:&mut MetaIdentity) {
+    public(friend) fun add_process(global: &mut MissionGlobal, mission:String, meta:&MetaIdentity) {
         let mission_records = &mut global.mission_records;
         assert!(linked_table::contains(mission_records, mission), ERR_MISSION_NOT_EXIST);
         let mission_info = linked_table::borrow_mut(mission_records, mission);
@@ -125,10 +126,36 @@ module shui_module::mission {
             goal_process:3,
             missions: table::new<u64, UserRecord>(ctx),
             deadline:0,
-            reward:utf8(b"fruit:1")
+            reward:utf8(b"anything")
         };
         assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
         linked_table::push_back(&mut global.mission_records, mission1_name, mission1);
+
+        // mission1: swap any water element
+        let mission2_name = utf8(b"swap water element");
+        let mission2 = MissionInfo {
+            name:mission2_name,
+            desc:utf8(b"swap fragments into any water element"),
+            goal_process:1,
+            missions: table::new<u64, UserRecord>(ctx),
+            deadline:0,
+            reward:utf8(b"anything")
+        };
+        assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
+        linked_table::push_back(&mut global.mission_records, mission2_name, mission2);
+
+        // mission1: swap any water element
+        let mission3_name = utf8(b"claim airdrop");
+        let mission3 = MissionInfo {
+            name:mission2_name,
+            desc:utf8(b"claim airdrop once"),
+            goal_process:1,
+            missions: table::new<u64, UserRecord>(ctx),
+            deadline:0,
+            reward:utf8(b"anything")
+        };
+        assert!(!linked_table::contains(&global.mission_records, mission3_name), ERR_MISSION_EXIST);
+        linked_table::push_back(&mut global.mission_records, mission3_name, mission3);
     }
 
     public entry fun delete_mission(global: &mut MissionGlobal, mission:String, clock:&Clock, ctx:&mut TxContext) {
