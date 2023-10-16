@@ -129,7 +129,6 @@ module shui_module::mission {
         };
         assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
         linked_table::push_back(&mut global.mission_records, mission1_name, mission1);
-        print(&111);
     }
 
     public entry fun delete_mission(global: &mut MissionGlobal, mission:String, clock:&Clock, ctx:&mut TxContext) {
