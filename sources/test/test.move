@@ -149,14 +149,6 @@ module shui_module::airdrop_test {
             mission::init_for_test(ctx(test));
         };
 
-
-        next_tx(test, admin);
-        {
-            let missionGlobal = take_shared<mission::MissionGlobal>(test);
-            mission::init_missions(&mut missionGlobal, ctx(test));
-            return_shared(missionGlobal);
-        };
-
         // register meta
         next_tx(test, admin);
         {
@@ -176,6 +168,21 @@ module shui_module::airdrop_test {
         {
             boat_ticket::init_for_test(ctx(test));
         };
+
+        
+
+        next_tx(test, admin);
+        {
+            let missionGlobal = take_shared<mission::MissionGlobal>(test);
+            mission::init_missions(&mut missionGlobal, ctx(test));
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            let mission_list = mission::query_mission_list(&missionGlobal, &mut meta);
+            print(&string::utf8(b"----------Mission_list----------"));
+            print(&mission_list);
+            return_to_sender(test, meta);
+            return_shared(missionGlobal);
+        };
+
 
         // boat ticket test
         next_tx(test, admin);
@@ -333,13 +340,6 @@ module shui_module::airdrop_test {
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
-        };
-
-        next_tx(test, admin);
-        {
-            let missionGlobal = take_shared<mission::MissionGlobal>(test);
-            mission::init_missions(&mut missionGlobal, ctx(test));
-            return_shared(missionGlobal);
         };
 
         // funds split

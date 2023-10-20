@@ -7,11 +7,12 @@ module shui_module::mission {
     use sui::object::{Self, ID};
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
-    use std::string::{String, utf8};
+    use std::string::{String, utf8, bytes};
     use sui::package;
     use sui::pay;
     use sui::clock::{Clock};
     use std::vector;
+    use std::ascii;
     use shui_module::metaIdentity::{Self, MetaIdentity};
     use std::debug::print;
     use sui::display;
@@ -74,12 +75,45 @@ module shui_module::mission {
         let table = &global.mission_records;
         let key:&option::Option<String> = linked_table::front(table);
         let next:&option::Option<String> = linked_table::next(table, *option::borrow(key));
+        let res_out:vector<u8> = *bytes(&utf8(b""));
+        let metaId = metaIdentity::get_meta_id(meta);
+        let byte_semi = ascii::byte(ascii::char(59));
         while (option::is_some(next)) {
+            // "misssion name"
             let key_value = *option::borrow(next);
-            let val_str:&MissionInfo = linked_table::borrow(table, key_value);
+            print(&key_value);
+            // "desc;goal;deadline;reward"
+            let mission_info:&MissionInfo = linked_table::borrow(table, key_value);
+            if (table::contains(&mission_info.missions, metaId)) {
+                // have records, maybe it's completed
+                let userRecord = table::borrow(&mission_info.missions, metaId);
+            } else {
+                vector::append(&mut res_out, *bytes(&mission_info.name));
+                vector::push_back(&mut res_out, byte_semi);
+                vector::append(&mut res_out, *bytes(&mission_info.desc));
+                vector::push_back(&mut res_out, byte_semi);
+                vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
+                vector::push_back(&mut res_out, byte_semi);
+                vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
+                vector::push_back(&mut res_out, byte_semi);
+                vector::append(&mut res_out, *bytes(&mission_info.reward));
+                vector::push_back(&mut res_out, byte_semi);
+            };
             next = linked_table::next(table, key_value);
         };
-        utf8(b"MissionInfo records")
+        utf8(res_out)
+    }
+
+    fun numbers_to_ascii_vector(val: u16): vector<u8> {
+        let vec = vector<u8>[];
+        loop {
+            let b = val % 10;
+            vector::push_back(&mut vec, (48 + b as u8));
+            val = val / 10;
+            if (val <= 0) break;
+        };
+        vector::reverse(&mut vec);
+        vec
     }
 
     public entry fun claim_mission(global: &mut MissionGlobal, mission:String, meta:&mut MetaIdentity) {
