@@ -2,7 +2,7 @@
 #[test_only]
 module shui_module::airdrop_test {
     use std::vector;
-    use std::string;
+    use std::string::{Self, utf8};
     use sui::clock;
     use std::debug::print;
     use sui::coin::{Self, Coin};
@@ -80,6 +80,17 @@ module shui_module::airdrop_test {
         return_to_sender(test, meta);
     }
 
+    fun print_missions(test: &mut Scenario) {
+        let missionGlobal = take_shared<mission::MissionGlobal>(test);
+        let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+        let mission_list = mission::query_mission_list(&missionGlobal, &mut meta);
+        print(&string::utf8(b"----------Mission_list----------"));
+        print(&mission_list);
+        print(&string::utf8(b"----------End----------"));
+        return_to_sender(test, meta);
+        return_shared(missionGlobal);
+    }
+
     fun print_balance(test: &mut Scenario, user:address) {
         let coin = take_from_address<Coin<shui::SHUI>>(test, user);
         let value = coin::value(&coin);
@@ -135,6 +146,7 @@ module shui_module::airdrop_test {
         let scenario = scenario();
         let test = &mut scenario;
         let admin = @account;
+        let clock = clock::create_for_testing(ctx(test));
 
         // init package
         next_tx(test, admin);
@@ -169,20 +181,41 @@ module shui_module::airdrop_test {
             boat_ticket::init_for_test(ctx(test));
         };
 
-        
-
         next_tx(test, admin);
         {
             let missionGlobal = take_shared<mission::MissionGlobal>(test);
             mission::init_missions(&mut missionGlobal, ctx(test));
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let mission_list = mission::query_mission_list(&missionGlobal, &mut meta);
-            print(&string::utf8(b"----------Mission_list----------"));
-            print(&mission_list);
-            return_to_sender(test, meta);
             return_shared(missionGlobal);
+            next_epoch(test, admin);
+            print_missions(test);
         };
 
+        next_tx(test, admin);
+        {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let i = 0;
+            while (i < 5) {
+                clock::increment_for_testing(&mut clock, 8 * HOUR_IN_MS + 1);
+                water_down(test, admin, &clock);
+                next_epoch(test, admin);
+                i = i + 1;
+            };
+            return_shared(itemGlobal);
+            next_epoch(test, admin);
+            print_missions(test);
+        };
+
+        next_tx(test, admin);
+        {
+            let missionGlobal = take_shared<mission::MissionGlobal>(test);
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            mission::claim_mission(&mut missionGlobal, utf8(b"water down"), &mut meta);
+            next_epoch(test, admin);
+            return_to_sender(test, meta);
+            return_shared(missionGlobal);
+            next_epoch(test, admin);
+            print_missions(test);
+        };
 
         // boat ticket test
         next_tx(test, admin);
@@ -202,16 +235,12 @@ module shui_module::airdrop_test {
             market::take_and_transfer_boat_ticket(&mut kiosk, &cap, addr, ctx(test));
             return_shared(kiosk);
             return_to_sender(test, cap);
-
             next_epoch(test, admin);
-
-           
         };
 
         // water down
         next_tx(test, admin);
         {
-            let clock = clock::create_for_testing(ctx(test));
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let i = 0;
             while (i < 60) {
@@ -222,7 +251,6 @@ module shui_module::airdrop_test {
             };
             print_items(&itemGlobal, test);
             return_shared(itemGlobal);
-            clock::destroy_for_testing(clock);
         };
 
         // open fruit for fragment
@@ -318,7 +346,7 @@ module shui_module::airdrop_test {
             // print_items(&itemGlobal, test);
             // return_shared(itemGlobal);
         };
-        
+        clock::destroy_for_testing(clock);  
         end(scenario);
     }
 

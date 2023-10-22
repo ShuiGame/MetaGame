@@ -15,6 +15,7 @@ module shui_module::tree_of_life {
     use shui_module::mission;
     use shui_module::metaIdentity::{Self, MetaIdentity, get_items};
     use shui_module::shui_ticket::{Self};
+    use std::debug::{print};
     use std::string::{Self, String, utf8};
     use sui::event;
 

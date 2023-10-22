@@ -72,33 +72,74 @@ module shui_module::mission {
     }
 
     public entry fun query_mission_list(global: &MissionGlobal, meta:&mut MetaIdentity) : String {
+        // name:desc:goal:current:deadline:reward
         let table = &global.mission_records;
         let key:&option::Option<String> = linked_table::front(table);
-        let next:&option::Option<String> = linked_table::next(table, *option::borrow(key));
+        let key_value = *option::borrow(key);
+        let mission_info:&MissionInfo = linked_table::borrow(table, key_value);
+        let current_process = 0;
         let res_out:vector<u8> = *bytes(&utf8(b""));
         let metaId = metaIdentity::get_meta_id(meta);
+        let byte_colon = ascii::byte(ascii::char(58));
         let byte_semi = ascii::byte(ascii::char(59));
-        while (option::is_some(next)) {
-            // "misssion name"
-            let key_value = *option::borrow(next);
-            print(&key_value);
-            // "desc;goal;deadline;reward"
-            let mission_info:&MissionInfo = linked_table::borrow(table, key_value);
-            if (table::contains(&mission_info.missions, metaId)) {
-                // todo: have records, maybe it's completed
-                let userRecord = table::borrow(&mission_info.missions, metaId);
-            } else {
+        if (table::contains(&mission_info.missions, metaId)) {
+            let userRecord = table::borrow(&mission_info.missions, metaId);
+            if (!userRecord.is_claimed) {
+                current_process = userRecord.current_process;
                 vector::append(&mut res_out, *bytes(&mission_info.name));
-                vector::push_back(&mut res_out, byte_semi);
+                vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, *bytes(&mission_info.desc));
-                vector::push_back(&mut res_out, byte_semi);
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, numbers_to_ascii_vector((current_process as u16)));
+                vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
-                vector::push_back(&mut res_out, byte_semi);
+                vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
-                vector::push_back(&mut res_out, byte_semi);
+                vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, *bytes(&mission_info.reward));
                 vector::push_back(&mut res_out, byte_semi);
             };
+        } else {
+            vector::append(&mut res_out, *bytes(&mission_info.name));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, *bytes(&mission_info.desc));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((current_process as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, *bytes(&mission_info.reward));
+            vector::push_back(&mut res_out, byte_semi);
+        };
+
+        let next:&option::Option<String> = linked_table::next(table, *option::borrow(key));
+        while (option::is_some(next)) {
+            key_value = *option::borrow(next);
+            print(&key_value);
+            let mission_info:&MissionInfo = linked_table::borrow(table, key_value);
+            let current_process = 0;
+            if (table::contains(&mission_info.missions, metaId)) {
+                let userRecord = table::borrow(&mission_info.missions, metaId);
+                if (userRecord.is_claimed) {
+                    continue
+                } else {
+                    current_process = userRecord.current_process;
+                };
+            };
+            vector::append(&mut res_out, *bytes(&mission_info.name));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, *bytes(&mission_info.desc));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((current_process as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
+            vector::push_back(&mut res_out, byte_colon);
+            vector::append(&mut res_out, *bytes(&mission_info.reward));
+            vector::push_back(&mut res_out, byte_semi);
             next = linked_table::next(table, key_value);
         };
         utf8(res_out)
@@ -129,6 +170,7 @@ module shui_module::mission {
         // todo: send item
 
         user_record.is_claimed = true;
+        print(&utf8(b"receive reward"));
     }   
 
     public(friend) fun add_process(global: &mut MissionGlobal, mission:String, meta:&MetaIdentity) {
@@ -145,8 +187,11 @@ module shui_module::mission {
             };
             table::add(&mut mission_info.missions, metaId, new_record);
         } else {
+            let goal_process = mission_info.goal_process;
             let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
-            user_record.current_process = user_record.current_process + 1;
+            if (user_record.current_process < goal_process) {
+                user_record.current_process = user_record.current_process + 1;
+            };
         };
     }
 
@@ -178,7 +223,7 @@ module shui_module::mission {
         assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
         linked_table::push_back(&mut global.mission_records, mission2_name, mission2);
 
-        // mission1: swap any water element
+        // mission2: claim airdrop
         let mission3_name = utf8(b"claim airdrop");
         let mission3 = MissionInfo {
             name:mission2_name,
