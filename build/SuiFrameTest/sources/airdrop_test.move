@@ -186,7 +186,7 @@ module shui_module::airdrop_test {
             let missionGlobal = take_shared<mission::MissionGlobal>(test);
             mission::init_missions(&mut missionGlobal, ctx(test), &clock);
             return_shared(missionGlobal);
-            // clock::increment_for_testing(&mut clock, 1 * DAY_IN_MS);
+            clock::increment_for_testing(&mut clock, 2 * DAY_IN_MS + 600000);
             next_epoch(test, admin);
             print_missions(test, &clock);
         };

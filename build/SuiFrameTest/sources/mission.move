@@ -97,7 +97,7 @@ module shui_module::mission {
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
                 vector::push_back(&mut res_out, byte_colon);
-                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
+                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline - now));
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, *bytes(&mission_info.reward));
                 vector::push_back(&mut res_out, byte_semi);
@@ -111,7 +111,7 @@ module shui_module::mission {
             vector::push_back(&mut res_out, byte_colon);
             vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
             vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
+            vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline - now));
             vector::push_back(&mut res_out, byte_colon);
             vector::append(&mut res_out, *bytes(&mission_info.reward));
             vector::push_back(&mut res_out, byte_semi);
@@ -140,7 +140,7 @@ module shui_module::mission {
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
                 vector::push_back(&mut res_out, byte_colon);
-                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
+                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline - now));
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, *bytes(&mission_info.reward));
                 vector::push_back(&mut res_out, byte_semi);
