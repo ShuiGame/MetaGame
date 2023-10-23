@@ -3,7 +3,7 @@
 module shui_module::airdrop_test {
     use std::vector;
     use std::string::{Self, utf8};
-    use sui::clock;
+    use sui::clock::{Self, Clock};
     use std::debug::print;
     use sui::coin::{Self, Coin};
     use sui::test_scenario::{
@@ -80,10 +80,10 @@ module shui_module::airdrop_test {
         return_to_sender(test, meta);
     }
 
-    fun print_missions(test: &mut Scenario) {
+    fun print_missions(test: &mut Scenario, clock: &Clock) {
         let missionGlobal = take_shared<mission::MissionGlobal>(test);
         let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-        let mission_list = mission::query_mission_list(&missionGlobal, &mut meta);
+        let mission_list = mission::query_mission_list(&missionGlobal, &mut meta, clock);
         print(&string::utf8(b"----------Mission_list----------"));
         print(&mission_list);
         print(&string::utf8(b"----------End----------"));
@@ -184,10 +184,11 @@ module shui_module::airdrop_test {
         next_tx(test, admin);
         {
             let missionGlobal = take_shared<mission::MissionGlobal>(test);
-            mission::init_missions(&mut missionGlobal, ctx(test));
+            mission::init_missions(&mut missionGlobal, ctx(test), &clock);
             return_shared(missionGlobal);
+            // clock::increment_for_testing(&mut clock, 1 * DAY_IN_MS);
             next_epoch(test, admin);
-            print_missions(test);
+            print_missions(test, &clock);
         };
 
         next_tx(test, admin);
@@ -202,7 +203,7 @@ module shui_module::airdrop_test {
             };
             return_shared(itemGlobal);
             next_epoch(test, admin);
-            print_missions(test);
+            print_missions(test, &clock);
         };
 
         next_tx(test, admin);
@@ -214,7 +215,7 @@ module shui_module::airdrop_test {
             return_to_sender(test, meta);
             return_shared(missionGlobal);
             next_epoch(test, admin);
-            print_missions(test);
+            print_missions(test, &clock);
         };
 
         // boat ticket test

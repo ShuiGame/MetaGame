@@ -10,7 +10,7 @@ module shui_module::mission {
     use std::string::{String, utf8, bytes};
     use sui::package;
     use sui::pay;
-    use sui::clock::{Clock};
+    use sui::clock::{Self, Clock};
     use std::vector;
     use std::ascii;
     use shui_module::metaIdentity::{Self, MetaIdentity};
@@ -28,6 +28,7 @@ module shui_module::mission {
     const ERR_MISSION_NOT_EXIST:u64 = 0x04;
     const ERR_IS_ALREADY_CLAIMED:u64 = 0x05;
     const ERR_PROGRESS_NOT_REACH:u64 = 0x06;
+    const DAY_IN_MS: u64 = 86_400_000;
 
     struct MissionGlobal has key {
         id: UID,
@@ -71,20 +72,22 @@ module shui_module::mission {
         transfer::share_object(global);
     }
 
-    public entry fun query_mission_list(global: &MissionGlobal, meta:&mut MetaIdentity) : String {
+    public entry fun query_mission_list(global: &MissionGlobal, meta:&mut MetaIdentity, clock: &Clock) : String {
         // name:desc:goal:current:deadline:reward
         let table = &global.mission_records;
         let key:&option::Option<String> = linked_table::front(table);
         let key_value = *option::borrow(key);
         let mission_info:&MissionInfo = linked_table::borrow(table, key_value);
         let current_process = 0;
+        let deadline = mission_info.deadline;
+        let now = clock::timestamp_ms(clock);
         let res_out:vector<u8> = *bytes(&utf8(b""));
         let metaId = metaIdentity::get_meta_id(meta);
         let byte_colon = ascii::byte(ascii::char(58));
         let byte_semi = ascii::byte(ascii::char(59));
         if (table::contains(&mission_info.missions, metaId)) {
             let userRecord = table::borrow(&mission_info.missions, metaId);
-            if (!userRecord.is_claimed) {
+            if (!userRecord.is_claimed && now < deadline) {
                 current_process = userRecord.current_process;
                 vector::append(&mut res_out, *bytes(&mission_info.name));
                 vector::push_back(&mut res_out, byte_colon);
@@ -94,12 +97,12 @@ module shui_module::mission {
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
                 vector::push_back(&mut res_out, byte_colon);
-                vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
+                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
                 vector::push_back(&mut res_out, byte_colon);
                 vector::append(&mut res_out, *bytes(&mission_info.reward));
                 vector::push_back(&mut res_out, byte_semi);
             };
-        } else {
+        } else if (now < deadline) {
             vector::append(&mut res_out, *bytes(&mission_info.name));
             vector::push_back(&mut res_out, byte_colon);
             vector::append(&mut res_out, *bytes(&mission_info.desc));
@@ -108,7 +111,7 @@ module shui_module::mission {
             vector::push_back(&mut res_out, byte_colon);
             vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
             vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
+            vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
             vector::push_back(&mut res_out, byte_colon);
             vector::append(&mut res_out, *bytes(&mission_info.reward));
             vector::push_back(&mut res_out, byte_semi);
@@ -128,24 +131,38 @@ module shui_module::mission {
                     current_process = userRecord.current_process;
                 };
             };
-            vector::append(&mut res_out, *bytes(&mission_info.name));
-            vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, *bytes(&mission_info.desc));
-            vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, numbers_to_ascii_vector((current_process as u16)));
-            vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
-            vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.deadline as u16)));
-            vector::push_back(&mut res_out, byte_colon);
-            vector::append(&mut res_out, *bytes(&mission_info.reward));
-            vector::push_back(&mut res_out, byte_semi);
+            if (now < deadline) {
+                vector::append(&mut res_out, *bytes(&mission_info.name));
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, *bytes(&mission_info.desc));
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, numbers_to_ascii_vector((current_process as u16)));
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, numbers_to_ascii_vector((mission_info.goal_process as u16)));
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, numbers_to_ascii_vector_64(mission_info.deadline));
+                vector::push_back(&mut res_out, byte_colon);
+                vector::append(&mut res_out, *bytes(&mission_info.reward));
+                vector::push_back(&mut res_out, byte_semi);
+            };
             next = linked_table::next(table, key_value);
         };
         utf8(res_out)
     }
 
     fun numbers_to_ascii_vector(val: u16): vector<u8> {
+        let vec = vector<u8>[];
+        loop {
+            let b = val % 10;
+            vector::push_back(&mut vec, (48 + b as u8));
+            val = val / 10;
+            if (val <= 0) break;
+        };
+        vector::reverse(&mut vec);
+        vec
+    }
+        
+    fun numbers_to_ascii_vector_64(val: u64): vector<u8> {
         let vec = vector<u8>[];
         loop {
             let b = val % 10;
@@ -195,16 +212,17 @@ module shui_module::mission {
         };
     }
 
-    public fun init_missions(global: &mut MissionGlobal, ctx:&mut TxContext) {
+    public fun init_missions(global: &mut MissionGlobal, ctx:&mut TxContext, clock:&clock::Clock) {
         // init all missions here, update with latest version
         // mission1: finish 3 water down
+        let now = clock::timestamp_ms(clock);
         let mission1_name = utf8(b"water down");
         let mission1 = MissionInfo {
             name:mission1_name,
             desc:utf8(b"water down 3 times"),
             goal_process:3,
             missions: table::new<u64, UserRecord>(ctx),
-            deadline:0,
+            deadline:now + 3 * DAY_IN_MS,
             reward:utf8(b"anything")
         };
         assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
@@ -217,7 +235,7 @@ module shui_module::mission {
             desc:utf8(b"swap fragments into any water element"),
             goal_process:1,
             missions: table::new<u64, UserRecord>(ctx),
-            deadline:0,
+            deadline:now + 4 * DAY_IN_MS,
             reward:utf8(b"anything")
         };
         assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
@@ -230,7 +248,7 @@ module shui_module::mission {
             desc:utf8(b"claim airdrop once"),
             goal_process:1,
             missions: table::new<u64, UserRecord>(ctx),
-            deadline:0,
+            deadline:now + 5 * DAY_IN_MS,
             reward:utf8(b"anything")
         };
         assert!(!linked_table::contains(&global.mission_records, mission3_name), ERR_MISSION_EXIST);
