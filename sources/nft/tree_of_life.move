@@ -12,9 +12,11 @@ module shui_module::tree_of_life {
     use sui::bcs;
     use sui::clock::{Self, Clock};
     use shui_module::items;
+    use shui_module::mission;
     use shui_module::metaIdentity::{Self, MetaIdentity, get_items};
     use shui_module::shui_ticket::{Self};
-    use std::string::{Self, String};
+    use std::debug::{print};
+    use std::string::{Self, String, utf8};
     use sui::event;
 
     friend shui_module::market;
@@ -25,11 +27,10 @@ module shui_module::tree_of_life {
     const SECONDS_IN_MILLS: u64 = 1_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
-    const ERR_WRONG_COMBINE_NUM:u64 = 0x002;
-    const ERR_WRONG_TYPE:u64 = 0x003;
-    const ERR_COIN_NOT_ENOUGH:u64 = 0x004;
-    const ERR_INVALID_NAME:u64 = 0x005;
-    const ERR_INVALID_TYPE:u64 = 0x006;
+    const ERR_WRONG_TYPE:u64 = 0x002;
+    const ERR_COIN_NOT_ENOUGH:u64 = 0x003;
+    const ERR_INVALID_NAME:u64 = 0x004;
+    const ERR_INVALID_TYPE:u64 = 0x005;
 
     struct Tree_of_life has key, store {
         id:UID,
@@ -103,7 +104,7 @@ module shui_module::tree_of_life {
         transfer::public_transfer(tree, tx_context::sender(ctx));
     }
 
-    public entry fun water_down(global: &mut TreeGlobal, meta:&mut MetaIdentity, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
+    public entry fun water_down(mission_global: &mut mission::MissionGlobal, global: &mut TreeGlobal, meta:&mut MetaIdentity, coins:vector<Coin<SHUI>>, clock: &Clock, ctx:&mut TxContext) {
         // interval time should be greater than 1 days
         let amount = 1;
         let now = clock::timestamp_ms(clock);
@@ -129,6 +130,7 @@ module shui_module::tree_of_life {
         };
 
         // record the time and exp
+        mission::add_process(mission_global, utf8(b"water down"), meta);
         if (table::contains(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta))) {
             let last_exp = *table::borrow(&global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
             if (last_exp == 2) {
@@ -190,7 +192,7 @@ module shui_module::tree_of_life {
         vector::destroy_empty(vec);
     }
 
-    public entry fun swap_fragment<T:store + drop>(meta:&mut MetaIdentity, fragment_type:string::String) {
+    public entry fun swap_fragment<T:store + drop>(mission_global:&mut mission::MissionGlobal, meta:&mut MetaIdentity, fragment_type:string::String) {
         assert!(check_class(&fragment_type), ERR_INVALID_TYPE);
         let items = get_items(meta);
         let fragment_name = string::utf8(b"fragment_");
@@ -210,6 +212,7 @@ module shui_module::tree_of_life {
             name:get_name_by_type(fragment_type, false),
             desc:get_desc_by_type(fragment_type, false)
         });
+        mission::add_process(mission_global, utf8(b"swap water element"), meta);
     }
 
     fun check_class(class: &string::String) : bool {

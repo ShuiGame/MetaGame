@@ -31,6 +31,18 @@ module shui_module::royalty_policy {
         transfer::public_transfer(cap, sender(ctx));
     }
 
+    public fun royalty_policy<T:key + store>(
+        // todo: generate every policy for each nft????? uvd
+        publisher: &Publisher,
+        amount_bp: u16,
+        ctx: &mut TxContext
+    ) : TransferPolicy<T> {
+        let (policy, cap) = policy::new<T>(publisher, ctx);
+        set<T>(&mut policy, &cap, amount_bp);
+        transfer::public_transfer(cap, sender(ctx));
+        policy
+    }
+
     // pay to beneficial
     public fun set<T:key + store>(
         policy: &mut TransferPolicy<T>,

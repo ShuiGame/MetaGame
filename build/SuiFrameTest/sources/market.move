@@ -90,7 +90,7 @@ module shui_module::market {
         let display = display::new_with_fields<GameItemsCredential>(
             &publisher, keys, values, ctx
         );
-        
+
         // set 0% royalty
         royalty_policy::new_royalty_policy<GameItemsCredential>(&publisher, 0, ctx);
 
@@ -127,8 +127,28 @@ module shui_module::market {
         );
         kiosk::place_and_list(&mut kiosk, &cap, virtualCredential, total_price);       
         transfer::public_transfer(cap, tx_context::sender(ctx));
-        transfer::public_transfer(kiosk, tx_context::sender(ctx));
+        transfer::public_share_object(kiosk);
         addr
+    }
+
+
+    public fun place_and_list_nft<T: key + store> (item: T, price: u64, ctx:&mut TxContext) {
+        let (kiosk, cap) = kiosk::new(ctx);
+        event::emit(
+            ItemListed {
+                kioskId:object::uid_to_bytes(kiosk::uid(&kiosk)),
+                name: string::utf8(b"nft"),
+                index: 0,
+                owner: tx_context::sender(ctx),
+                price: price,
+                item_id: object::id_address(&item),
+                num: 1,
+                kioskcap: object::id_address(&cap),
+            }
+        );
+        kiosk::place_and_list(&mut kiosk, &cap, item, price);
+        transfer::public_transfer(cap, tx_context::sender(ctx));
+        transfer::public_share_object(kiosk);
     }
 
     public fun place_and_list_boat_ticket(item: boat_ticket::BoatTicket, price: u64, ctx:&mut TxContext) {
@@ -149,7 +169,7 @@ module shui_module::market {
         );
         kiosk::place_and_list(&mut kiosk, &cap, item, price);
         transfer::public_transfer(cap, tx_context::sender(ctx));
-        transfer::public_transfer(kiosk, tx_context::sender(ctx));
+        transfer::public_share_object(kiosk);
     }
 
     public fun buy_gamefis(meta:&mut MetaIdentity, policy: &TransferPolicy<GameItemsCredential>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
@@ -199,8 +219,35 @@ module shui_module::market {
         );
     }
 
+    public fun buy_nft<T:key + store>(policy: &TransferPolicy<T>, kiosk: &mut kiosk::Kiosk, addr:address, coins:vector<Coin<SUI>>, ctx: &mut TxContext) {
+        let id = object::id_from_address(addr);
+        let merged_coin = vector::pop_back(&mut coins);
+        pay::join_vec(&mut merged_coin, coins);
+        print(&merged_coin);
+        let (nft, transferRequst) = kiosk::purchase<T>(kiosk, id, merged_coin);
+        let royalty_pay = coin::zero<SUI>(ctx);
+        royalty_policy::pay(policy, &mut transferRequst, &mut royalty_pay, ctx);
+        coin::destroy_zero(royalty_pay);
+        policy::confirm_request(policy, transferRequst);
+        transfer::public_transfer(nft, tx_context::sender(ctx));
+        event::emit(
+            ItemPurchased {
+                kioskId:object::uid_to_bytes(kiosk::uid(kiosk)),
+                owner:kiosk::owner(kiosk),
+                buyer:tx_context::sender(ctx),
+                name:string::utf8(b"nft"),
+                num:1
+            }
+        );
+    }
+
     public fun take_and_transfer_boat_ticket(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
         let nft = kiosk::take<boat_ticket::BoatTicket>(kiosk, cap, object::id_from_address(item));
+        transfer::public_transfer(nft, tx_context::sender(ctx));
+    }
+
+    public fun take_and_transfer_nft<T:key + store>(kiosk: &mut kiosk::Kiosk, cap: &kiosk::KioskOwnerCap, item: address, ctx: &mut TxContext) {
+        let nft = kiosk::take<T>(kiosk, cap, object::id_from_address(item));
         transfer::public_transfer(nft, tx_context::sender(ctx));
     }
 
