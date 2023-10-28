@@ -32,7 +32,6 @@ module shui_module::royalty_policy {
     }
 
     public fun royalty_policy<T:key + store>(
-        // todo: generate every policy for each nft????? uvd
         publisher: &Publisher,
         amount_bp: u16,
         ctx: &mut TxContext
@@ -70,6 +69,15 @@ module shui_module::royalty_policy {
             transfer::public_transfer(fee, config.beneficiary);
         };
         policy::add_receipt(Rule {}, request)
+    }
+
+    public fun calculate_royalty<T:key + store>(
+        policy: &TransferPolicy<T>,
+        paid: u64
+    ): u64 {
+        let config: &Config = policy::get_rule(Rule {}, policy);
+
+        return calculate(config.amount_bp, paid)
     }
 
     public fun calculate(amount_bp: u16, paid: u64): u64 {
