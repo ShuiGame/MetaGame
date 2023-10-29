@@ -87,16 +87,19 @@ module shui_module::airdrop {
 
     fun get_per_amount_by_time(global: &AirdropGlobal, clock: &Clock):u64 {
         let phase = get_phase_by_time(global, clock);
-        assert!(phase >= 1 && phase <= 5, ERR_INVALID_PHASE);
-        (35 - phase * 5) * AMOUNT_DECIMAL
+        assert!(phase >= 1 && phase <= 6, ERR_INVALID_PHASE);
+        if (phase == 6) {
+            return 10
+        };
+        (60 - phase * 10) * AMOUNT_DECIMAL
     }
 
     public fun get_phase_by_time(info:&AirdropGlobal, clock: &Clock) : u64 {
         let now = clock::timestamp_ms(clock);
         let diff = now - info.start;
         let phase = diff / (30 * DAY_IN_MS) + 1;
-        if (phase > 5) {
-            phase = 5;
+        if (phase > 6) {
+            phase = 6;
         };
         phase
     }
@@ -176,7 +179,7 @@ module shui_module::airdrop {
     }
 
     public entry fun get_daily_limit(days:u64) :u64 {
-        if (days == 120) {
+        if (days >= 150) {
             1_000_000 * AMOUNT_DECIMAL
         } else {
             (days / 30 + 1) * 1_000_000 * AMOUNT_DECIMAL
