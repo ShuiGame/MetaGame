@@ -11,6 +11,8 @@ module shui_module::mission {
     use sui::package;
     use sui::pay;
     use sui::clock::{Self, Clock};
+    use sui::balance::{Self, Balance};
+
     use std::vector;
     use std::ascii;
     use shui_module::metaIdentity::{Self, MetaIdentity};
@@ -19,6 +21,7 @@ module shui_module::mission {
     use shui_module::tree_of_life::{Self};
     use sui::linked_table::{Self, LinkedTable};
     use std::option::{Self};
+    use shui_module::shui::{Self};
     friend shui_module::tree_of_life;
     friend shui_module::airdrop;
 
@@ -36,6 +39,7 @@ module shui_module::mission {
 
         // missionName -> MissionRecord
         mission_records: LinkedTable<String, MissionInfo>,
+        creator: address
     }
 
     struct MissionInfo has store {
@@ -66,6 +70,8 @@ module shui_module::mission {
         let global = MissionGlobal {
             id: object::new(ctx),
             mission_records: linked_table::new<String, MissionInfo>(ctx),
+            balance_SHUI: balance::zero(),
+            creator: @account,
         };
         transfer::share_object(global);
     }
@@ -74,7 +80,9 @@ module shui_module::mission {
     public fun init_for_test(ctx: &mut TxContext) {
         let global = MissionGlobal {
             id: object::new(ctx),
+            balance_SHUI: balance::zero(),
             mission_records: linked_table::new<String, MissionInfo>(ctx),
+            creator: @account,
         };
         transfer::share_object(global);
     }

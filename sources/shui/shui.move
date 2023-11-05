@@ -21,6 +21,7 @@ module shui_module::shui {
     friend shui_module::airdrop;   
     friend shui_module::swap;
     friend shui_module::founder_team_reserve;
+    friend shui_module::mission;
 
     const TYPE_FOUNDER:u64 = 0;
     const TYPE_CO_FOUNDER:u64 = 1;
