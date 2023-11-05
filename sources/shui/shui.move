@@ -54,7 +54,7 @@ module shui_module::shui {
     const MISSION_RESERVE:u64 = 239_000_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const AIRDROP_AMOUNT:u64 = 390_000_000;
-    const SWAP_AMOUNT:u64 = 379_000_000;
+    const SWAP_AMOUNT:u64 = 300_000_000;
 
     struct SHUI has drop {}
 

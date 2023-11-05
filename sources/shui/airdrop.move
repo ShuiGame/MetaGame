@@ -200,8 +200,10 @@ module shui_module::airdrop {
             (90 + days * 3) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else if (days <= 120) {
             (180 + days * 4) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
+        } else if (days <= 150) {
+            (300 + days * 5) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         } else {
-            (300 + days) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
+            (450 + days) * 1_000_000 * AMOUNT_DECIMAL - info.total_claim_amount
         }
     }
 }

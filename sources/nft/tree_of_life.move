@@ -49,6 +49,16 @@ module shui_module::tree_of_life {
 
     // ====== Events ======
     // For when someone has purchased a donut.
+    struct GetFruit has copy, drop {
+        meta_id: u64,
+        element_reward: string::String,
+    }
+
+    struct GetElement has copy, drop {
+        meta_id: u64,
+        element_reward: string::String,
+    }
+
     struct FruitOpened has copy, drop {
         meta_id: u64,
         name: string::String,
@@ -137,6 +147,12 @@ module shui_module::tree_of_life {
                 items::store_item(get_items(meta), string::utf8(b"fruit"), Fruit{});
                 let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
                 *exp = 0;
+                event::emit(
+                    GetFruit {
+                        meta_id: metaIdentity::get_meta_id(meta),
+                        element_reward: string::utf8(b"fruit;"),
+                    }
+                );
             } else {
                 let exp:&mut u64 = table::borrow_mut(&mut global.water_down_person_exp_records, metaIdentity::get_meta_id(meta));
                 *exp = *exp + 1;
@@ -212,6 +228,12 @@ module shui_module::tree_of_life {
             name:get_name_by_type(fragment_type, false),
             desc:get_desc_by_type(fragment_type, false)
         });
+        event::emit(
+            GetElement {
+                meta_id: metaIdentity::get_meta_id(meta),
+                element_reward: get_name_by_type(fragment_type, false),
+            }
+        );
         mission::add_process(mission_global, utf8(b"swap water element"), meta);
     }
 
