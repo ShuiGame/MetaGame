@@ -48,12 +48,11 @@ module shui_module::shui {
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
     const FOUNDATION_RESERVE:u64 = 50_000_000;
     const DAO_RESERVE:u64 = 50_000_000;
-    const GAME_RESERVE:u64 = 1_300_000_000;
+    const GAME_RESERVE:u64 = 1_000_000_000;
     const FOUNDER_TEAM_RESERVE:u64 = 21_000_000;
-
+    const MISSION_RESERVE:u64 = 239_000_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
-
-    const AIRDROP_AMOUNT:u64 = 300_000_000;
+    const AIRDROP_AMOUNT:u64 = 390_000_000;
     const SWAP_AMOUNT:u64 = 379_000_000;
 
     struct SHUI has drop {}
@@ -171,5 +170,10 @@ module shui_module::shui {
     public(friend) fun extract_founder_reserve_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
         assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
         balance::split(&mut global.balance_SHUI, FOUNDER_TEAM_RESERVE * AMOUNT_DECIMAL)
+    }
+
+    public(friend) fun extract_mission_reserve_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+        balance::split(&mut global.balance_SHUI, MISSION_RESERVE * AMOUNT_DECIMAL)
     }
 }

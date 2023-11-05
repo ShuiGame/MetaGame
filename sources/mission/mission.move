@@ -32,6 +32,7 @@ module shui_module::mission {
 
     struct MissionGlobal has key {
         id: UID,
+        balance_SHUI: Balance<shui::SHUI>,
 
         // missionName -> MissionRecord
         mission_records: LinkedTable<String, MissionInfo>,
@@ -53,6 +54,12 @@ module shui_module::mission {
         metaId:u64,
         current_process:u64,
         is_claimed:bool
+    }
+
+    public fun init_funds_from_main_contract(global: &mut MissionGlobal, shuiGlobal:&mut shui::Global, ctx: &mut TxContext) {
+        assert!(global.creator == tx_context::sender(ctx), ERR_NO_PERMISSION);
+        let balance = shui::extract_mission_reserve_balance(shuiGlobal, ctx);
+        balance::join(&mut global.balance_SHUI, balance);
     }
 
     fun init(ctx: &mut TxContext) {
