@@ -207,27 +207,28 @@ module shui_module::mission {
 
     public(friend) fun add_process(global: &mut MissionGlobal, mission:String, meta:&MetaIdentity) {
         let mission_records = &mut global.mission_records;
-        assert!(linked_table::contains(mission_records, mission), ERR_MISSION_NOT_EXIST);
-        let mission_info = linked_table::borrow_mut(mission_records, mission);
-        let metaId = metaIdentity::get_meta_id(meta);
-        if (!table::contains(&mission_info.missions, metaId)) {
-            let new_record = UserRecord {
-                name:mission,
-                metaId:metaId,
-                current_process:1,
-                is_claimed:false
-            };
-            table::add(&mut mission_info.missions, metaId, new_record);
-        } else {
-            let goal_process = mission_info.goal_process;
-            let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
-            if (user_record.current_process < goal_process) {
-                user_record.current_process = user_record.current_process + 1;
+        if (linked_table::contains(mission_records, mission)) {
+            let mission_info = linked_table::borrow_mut(mission_records, mission);
+            let metaId = metaIdentity::get_meta_id(meta);
+            if (!table::contains(&mission_info.missions, metaId)) {
+                let new_record = UserRecord {
+                    name:mission,
+                    metaId:metaId,
+                    current_process:1,
+                    is_claimed:false
+                };
+                table::add(&mut mission_info.missions, metaId, new_record);
+            } else {
+                let goal_process = mission_info.goal_process;
+                let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
+                if (user_record.current_process < goal_process) {
+                    user_record.current_process = user_record.current_process + 1;
+                };
             };
         };
     }
 
-    public fun init_missions(global: &mut MissionGlobal, ctx:&mut TxContext, clock:&clock::Clock) {
+    public fun init_missions(global: &mut MissionGlobal, clock:&clock::Clock, ctx:&mut TxContext) {
         // init all missions here, update with latest version
         // mission1: finish 3 water down
         let now = clock::timestamp_ms(clock);
