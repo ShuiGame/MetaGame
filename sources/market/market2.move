@@ -7,6 +7,7 @@ module shui_module::market2 {
     use sui::object::{UID, Self};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
+    use std::debug::print;
     use sui::transfer;
     use sui::address;
     use sui::tx_context::{Self, TxContext};
@@ -46,7 +47,7 @@ module shui_module::market2 {
         let global = MarketGlobal {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
-            balance_SUI: balance::zero,
+            balance_SUI: balance::zero(),
             market_sales: linked_table::new<address, vector<OnSale>>(ctx),
         };
         transfer::share_object(global);
@@ -101,12 +102,12 @@ module shui_module::market2 {
     //     &vec_out
     // }
 
-    public entry fun get_market_sales(global: &MarketGlobal, _clock:&Clock) : vector<u8> {
+    public entry fun get_market_sales(global: &MarketGlobal, _clock:&Clock) : string::String {
         // ;
         let byte_semi = ascii::byte(ascii::char(59));
         let table = &global.market_sales;
         if (linked_table::is_empty(table)) {
-            return *string::bytes(&string::utf8(b"none"))
+            return utf8(b"none");
         };
         let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
         let key = linked_table::front(table);
@@ -121,7 +122,7 @@ module shui_module::market2 {
             vector::append(&mut vec_out, print_onsale_vector(sales_vec));
             vector::push_back(&mut vec_out, byte_semi);
         };
-        vec_out
+        utf8(vec_out)
     }
 
     fun print_onsale_vector(my_sales:&vector<OnSale>): vector<u8> {
@@ -129,11 +130,12 @@ module shui_module::market2 {
         let _byte_semi = ascii::byte(ascii::char(59));
         // ,
         let byte_comma = ascii::byte(ascii::char(44));
-        let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
+        let vec_out:vector<u8> = *string::bytes(&string::utf8(b"0x"));
         let (i, len) = (0u64, vector::length(my_sales));
         while (i < len) {
             let onSale:&OnSale = vector::borrow(my_sales, i);
-            vector::append(&mut vec_out, object::uid_to_bytes(&onSale.id));
+            let onsale_id_str = address::to_string(object::uid_to_address(&onSale.id));
+            vector::append(&mut vec_out, *string::bytes(&onsale_id_str));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, *string::bytes(&onSale.name));
             vector::push_back(&mut vec_out, byte_comma);
@@ -143,11 +145,13 @@ module shui_module::market2 {
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, *string::bytes(&onSale.type));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, address::to_bytes(onSale.owner));
+            let owner_addr_str = address::to_string(onSale.owner);
+            vector::append(&mut vec_out, *string::bytes(&owner_addr_str));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.onsale_time));
             i = i + 1
         };
+        print(&utf8(vec_out));
         vec_out
     }
 
@@ -247,9 +251,9 @@ module shui_module::market2 {
     public entry fun list_game_item (
         global: &mut MarketGlobal,
         meta: &mut MetaIdentity,
-        price: u64,
         name: String,
         num: u64,
+        price: u64,
         clock: &Clock,
         ctx: &mut TxContext
     ) {

@@ -16,8 +16,7 @@ module shui_module::airdrop_test {
         Self as policy,
         TransferPolicy,
         TransferPolicyCap,
-        TransferRequest,
-        remove_rule
+        TransferRequest
     };
 
     use sui::sui::SUI;
@@ -33,6 +32,7 @@ module shui_module::airdrop_test {
     use shui_module::swap::{Self};
     use shui_module::tree_of_life::{Self};
     use shui_module::crypto::{Self};
+    use shui_module::market2;
     use shui_module::boat_ticket::{Self};
     use shui_module::market::{Self};
     use shui_module::mission;
@@ -41,7 +41,6 @@ module shui_module::airdrop_test {
 
     use sui::hex::{Self};
 
-    const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const DAY_IN_MS: u64 = 86_400_000;
     const HOUR_IN_MS: u64 = 3_600_000;
     const START:u64 = 80000;
@@ -142,8 +141,6 @@ module shui_module::airdrop_test {
 
     #[test]
     fun test_market() {
-        print(&string::utf8(b"start market test"));
-        
         let scenario = scenario();
         let test = &mut scenario;
         let admin = @account;
@@ -160,6 +157,7 @@ module shui_module::airdrop_test {
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
             mission::init_for_test(ctx(test));
+            market2::init_for_test(ctx(test));
         };
 
         // register meta
@@ -185,7 +183,7 @@ module shui_module::airdrop_test {
         next_tx(test, admin);
         {
             let missionGlobal = take_shared<mission::MissionGlobal>(test);
-            mission::init_missions(&mut missionGlobal, ctx(test), &clock);
+            mission::init_missions(&mut missionGlobal, &clock, ctx(test));
             return_shared(missionGlobal);
             clock::increment_for_testing(&mut clock, 2 * DAY_IN_MS + 600000);
             next_epoch(test, admin);
@@ -263,7 +261,6 @@ module shui_module::airdrop_test {
             tx_context::increment_epoch_timestamp(ctx(test), 4);
             let i = 0;
             let loop_num = 5;
-            let days_min = loop_num * 3;
             while (i < loop_num) {
                 let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
                 tree_of_life::open_fruit(&mut meta, ctx(test));
@@ -276,140 +273,153 @@ module shui_module::airdrop_test {
             return_shared(itemGlobal);
         };
 
-        // boat_ticket market test
         next_tx(test, admin);
         {
-            let publisher = package::test_claim(OTW {}, ctx(test));
-
-            royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(
-                &mut publisher,
-                100, // 1%
-                ctx(test)
-            );
-
-            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
-            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
-            next_epoch(test, admin);
-            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
-            let addr = object::id_address(&ticket);
-            market::list(ticket, 10000, ctx(test));
-            next_epoch(test, admin);
-
-            let policy = take_shared(test);
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let payment = coin::mint_for_testing<SUI>(10000, ctx(test));
-            let royalty = coin::mint_for_testing<SUI>(100, ctx(test));
-            
-            let coins = vector::empty<coin::Coin<SUI>>();
-            vector::push_back(&mut coins, payment);
-            let royalty_coins = vector::empty<coin::Coin<SUI>>();
-            vector::push_back(&mut royalty_coins, royalty);
-            market::purchase<boat_ticket::BoatTicket>(
-                &policy,
-                &mut kiosk,
-                addr,
-                coins,
-                royalty_coins,
-                ctx(test)
-            );
-
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::complete(kiosk, cap, ctx(test));
-
-            return_shared(policy);
-            next_epoch(test, admin);
-            package::burn_publisher(publisher);
-            return_shared(ticketGlobal);
-        };
-
-        // game item market test
-        next_tx(test, admin);
-        {
-            print(&string::utf8(b"list to market"));
+            print(&string::utf8(b"-----------------start market2 test---------------"));
+            let market_global =  take_shared<market2::MarketGlobal>(test);
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let name = string::utf8(b"fruit");
-            let num = 12;
-            let addr = market::list_game_items(&mut meta, 1, name, num, ctx(test));
+            market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
             return_to_sender(test, meta);
 
-            next_epoch(test,admin);
 
-            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let res = market2::get_market_sales(&market_global, &clock);
+            print(&res);
+            return_shared(market_global);
+            next_epoch(test, admin);
+
             print_items(&itemGlobal, test);
             return_shared(itemGlobal);
-
-            next_epoch(test, admin);
-
-            print(&string::utf8(b"take from market"));
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::unlist_game_items(&mut kiosk, &cap, &mut meta, addr, ctx(test));
-            return_to_sender(test, kiosk);
-            return_to_sender(test, cap);
-            return_to_sender(test, meta);
         };
 
-        next_tx(test, admin);
-        {
-            print(&string::utf8(b"list to market"));
-            let publisher = package::test_claim(OTW {}, ctx(test));
+        // boat_ticket market test
+        // next_tx(test, admin);
+        // {
+        //     print(&string::utf8(b"start market test"));
+        //     let publisher = package::test_claim(OTW {}, ctx(test));
+        //     royalty_policy::new_royalty_policy<boat_ticket::BoatTicket>(
+        //         &mut publisher,
+        //         100, // 1%
+        //         ctx(test)
+        //     );
 
-            royalty_policy::new_royalty_policy<items_credential::GameItemsCredential>(
-                &mut publisher,
-                100, // 1%
-                ctx(test)
-            );
+        //     let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+        //     boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
+        //     next_epoch(test, admin);
+        //     let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+        //     let addr = object::id_address(&ticket);
+        //     market::list(ticket, 10000, ctx(test));
+        //     next_epoch(test, admin);
 
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            let name = string::utf8(b"fruit");
-            let num = 12;
-            let addr = market::list_game_items(&mut meta, 10000, name, num, ctx(test));
-            next_epoch(test,admin);
-
-            let itemGlobal = take_shared<items::ItemGlobal>(test);
-            (&itemGlobal, test);
-            return_shared(itemGlobal);
-
-            next_epoch(test, admin);
-
-            print(&string::utf8(b"take from market"));
-            let policy = take_shared(test);
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let payment = coin::mint_for_testing<SUI>(10000, ctx(test));
-            let royalty = coin::mint_for_testing<SUI>(100, ctx(test));
-
-            let coins = vector::empty<coin::Coin<SUI>>();
-            vector::push_back(&mut coins, payment);
-            let royalty_coins = vector::empty<coin::Coin<SUI>>();
-            vector::push_back(&mut royalty_coins, royalty);
-
-            market::purchase_game_items(
-                &mut meta,
-                &policy,
-                &mut kiosk,
-                addr,
-                coins,
-                royalty_coins,
-                ctx(test)
-            );
-
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::complete(kiosk, cap, ctx(test));
-
-            return_shared(policy);
-            return_to_sender(test, meta);
-            package::burn_publisher(publisher);
-
-            next_epoch(test, admin);
-        };
+        //     let policy = take_shared(test);
+        //     let kiosk = take_from_sender<kiosk::Kiosk>(test);
+        //     let payment = coin::mint_for_testing<SUI>(10000, ctx(test));
+        //     let royalty = coin::mint_for_testing<SUI>(100, ctx(test));
             
-        next_tx(test, admin);
-        {
-            // let itemGlobal = take_shared<items::ItemGlobal>(test);
-            // print_items(&itemGlobal, test);
-            // return_shared(itemGlobal);
-        };
+        //     let coins = vector::empty<coin::Coin<SUI>>();
+        //     vector::push_back(&mut coins, payment);
+        //     let royalty_coins = vector::empty<coin::Coin<SUI>>();
+        //     vector::push_back(&mut royalty_coins, royalty);
+        //     market::purchase<boat_ticket::BoatTicket>(
+        //         &policy,
+        //         &mut kiosk,
+        //         addr,
+        //         coins,
+        //         royalty_coins,
+        //         ctx(test)
+        //     );
+
+        //     let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+        //     market::complete(kiosk, cap, ctx(test));
+
+        //     return_shared(policy);
+        //     next_epoch(test, admin);
+        //     package::burn_publisher(publisher);
+        //     return_shared(ticketGlobal);
+        // };
+
+        // // game item market test
+        // next_tx(test, admin);
+        // {
+        //     print(&string::utf8(b"list to market"));
+        //     let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+        //     let name = string::utf8(b"fruit");
+        //     let num = 12;
+        //     let addr = market::list_game_items(&mut meta, 1, name, num, ctx(test));
+        //     return_to_sender(test, meta);
+
+        //     next_epoch(test,admin);
+
+        //     let itemGlobal = take_shared<items::ItemGlobal>(test);
+        //     print_items(&itemGlobal, test);
+        //     return_shared(itemGlobal);
+
+        //     next_epoch(test, admin);
+
+        //     print(&string::utf8(b"take from market"));
+        //     let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+        //     let kiosk = take_from_sender<kiosk::Kiosk>(test);
+        //     let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+        //     market::unlist_game_items(&mut kiosk, &cap, &mut meta, addr, ctx(test));
+        //     return_to_sender(test, kiosk);
+        //     return_to_sender(test, cap);
+        //     return_to_sender(test, meta);
+        // };
+
+        // next_tx(test, admin);
+        // {
+        //     print(&string::utf8(b"list to market"));
+        //     let publisher = package::test_claim(OTW {}, ctx(test));
+
+        //     royalty_policy::new_royalty_policy<items_credential::GameItemsCredential>(
+        //         &mut publisher,
+        //         100, // 1%
+        //         ctx(test)
+        //     );
+
+        //     let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+        //     let name = string::utf8(b"fruit");
+        //     let num = 12;
+        //     let addr = market::list_game_items(&mut meta, 10000, name, num, ctx(test));
+        //     next_epoch(test,admin);
+
+        //     let itemGlobal = take_shared<items::ItemGlobal>(test);
+        //     (&itemGlobal, test);
+        //     return_shared(itemGlobal);
+
+        //     next_epoch(test, admin);
+
+        //     print(&string::utf8(b"take from market"));
+        //     let policy = take_shared(test);
+        //     let kiosk = take_from_sender<kiosk::Kiosk>(test);
+        //     let payment = coin::mint_for_testing<SUI>(10000, ctx(test));
+        //     let royalty = coin::mint_for_testing<SUI>(100, ctx(test));
+
+        //     let coins = vector::empty<coin::Coin<SUI>>();
+        //     vector::push_back(&mut coins, payment);
+        //     let royalty_coins = vector::empty<coin::Coin<SUI>>();
+        //     vector::push_back(&mut royalty_coins, royalty);
+
+        //     market::purchase_game_items(
+        //         &mut meta,
+        //         &policy,
+        //         &mut kiosk,
+        //         addr,
+        //         coins,
+        //         royalty_coins,
+        //         ctx(test)
+        //     );
+
+        //     let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
+        //     market::complete(kiosk, cap, ctx(test));
+
+        //     return_shared(policy);
+        //     return_to_sender(test, meta);
+        //     package::burn_publisher(publisher);
+
+        //     next_epoch(test, admin);
+        // };
+
         clock::destroy_for_testing(clock);  
         end(scenario);
     }
@@ -432,6 +442,7 @@ module shui_module::airdrop_test {
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
+            market2::init_for_test(ctx(test));
         };
 
         // funds split
@@ -560,7 +571,6 @@ module shui_module::airdrop_test {
         // set swap whitelist
         next_tx(test, admin);
         {
-            let type = 0;
             let swapGlobal = take_shared<swap::SwapGlobal>(test);
             let msg = x"be379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c18";
             let sig = x"91EEC3C09428D1E3ECF7DDD723E71A6E7108293FD7B0EB6AE2C796A84D8DF3AE09D6119EE5FE9016BC14847C3AF69130B4CE06534EA1A5EBB13142BFCA0A430C";
