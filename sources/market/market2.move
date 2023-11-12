@@ -76,33 +76,15 @@ module shui_module::market2 {
         }
     }
 
-    public fun get_market_sales2(global: &MarketGlobal) : &vector<OnSale> {
-        // let vec_out = vector::empty<OnSale>();
+    public fun get_market_sales_vec(global: &MarketGlobal) : &vector<OnSale> {
         let table = &global.market_sales;
-
         let key = linked_table::front(table);
         let key_value = *option::borrow(key);
         let sales = linked_table::borrow(table, key_value);
         sales
-        // loop the vector
-
-        // let next = linked_table::next(table, *option::borrow(key));
-        // while (option::is_some(next)) {
-        //     let key_value = *option::borrow(next);
-        //     vector::append(&mut vec_out, *string::bytes(&key_value));
-        //     vector::push_back(&mut vec_out, byte_colon);
-
-        //     let val_str = linked_table::borrow(table, key_value);
-        //     vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
-        //     vector::push_back(&mut vec_out, byte_comma);
-        //     vector::push_back(&mut vec_out, byte_semi);
-        //     next = linked_table::next(table, key_value);
-        // };
-        // &vec_out
     }
 
     public entry fun get_market_sales(global: &MarketGlobal, _clock:&Clock) : string::String {
-        // ;
         let byte_semi = ascii::byte(ascii::char(59));
         let table = &global.market_sales;
         if (linked_table::is_empty(table)) {

@@ -336,7 +336,7 @@ module shui_module::airdrop_test {
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
-            // market2::list_game_item(&mut market_global, &mut meta, utf8(b"fragment_life"), 1,  1, &clock, ctx(test));
+            market2::list_game_item(&mut market_global, &mut meta, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
             return_to_sender(test, meta);
 
             let res = market2::get_market_sales(&market_global, &clock);
@@ -356,14 +356,43 @@ module shui_module::airdrop_test {
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
-            // market2::list_game_item(&mut market_global, &mut meta, utf8(b"fragment_life"), 1,  1, &clock, ctx(test));
             return_to_sender(test, meta);
-
             let res = market2::get_market_sales(&market_global, &clock);
             print(&res);
 
             return_shared(market_global);
-            next_epoch(test, user);
+            return_shared(itemGlobal);
+        };
+
+        // unlist test
+        next_tx(test, admin);
+        {
+            print(&string::utf8(b"-----------------start market2 test---------------"));
+            let market_global =  take_shared<market2::MarketGlobal>(test);
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            market2::unlist_game_item(&mut market_global, &mut meta, @account, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
+            return_to_sender(test, meta);
+            return_shared(market_global);
+            return_shared(itemGlobal);
+        };
+
+        // market purchase test
+        next_tx(test, admin);
+        {
+            print(&string::utf8(b"-----------------start market2 test---------------"));
+            let market_global =  take_shared<market2::MarketGlobal>(test);
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+            let coin = coin::mint_for_testing<SUI>(1, ctx(test));
+            let coins = vector::empty<Coin<SUI>>();
+            vector::push_back(&mut coins, coin);
+            market2::purchase_game_item(&mut market_global, &mut meta, @user, utf8(b"fruit"), 1, coins, &clock, ctx(test));
+            return_to_sender(test, meta);
+            let res = market2::get_market_sales(&market_global, &clock);
+            print(&res);
+
+            return_shared(market_global);
             return_shared(itemGlobal);
         };
         clock::destroy_for_testing(clock);  
