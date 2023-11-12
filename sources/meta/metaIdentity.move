@@ -109,7 +109,7 @@ module shui_module::metaIdentity {
 
     public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
         let sender = tx_context::sender(ctx);
-        assert!(global.register_owner == sender, ERR_NO_PERMISSION);
+        // assert!(global.register_owner == sender, ERR_NO_PERMISSION);
         assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ALREADY_BIND);
         let uid = object::new(ctx);
         let meta_addr = object::uid_to_address(&uid);

@@ -76,38 +76,37 @@ module shui_module::market2 {
         }
     }
 
-    // public entry fun get_market_sales2(global: &MarketGlobal) : &vector<OnSale> {
-    //     let vec_out = vector::empty<OnSale>;
-    //     let table = &global.market_sales;
-    //     if (linked_table::is_empty(table)) {
-    //         return string::utf8(b"none")
-    //     };
-    //     let key:address = linked_table::front(table);
-    //     let key_value = *option::borrow(key);
-    //     let sales = linked_table::borrow(table, key_value);
-    //     // loop the vector
+    public fun get_market_sales2(global: &MarketGlobal) : &vector<OnSale> {
+        // let vec_out = vector::empty<OnSale>();
+        let table = &global.market_sales;
 
-    //     let next = linked_table::next(table, *option::borrow(key));
-    //     while (option::is_some(next)) {
-    //         let key_value = *option::borrow(next);
-    //         vector::append(&mut vec_out, *string::bytes(&key_value));
-    //         vector::push_back(&mut vec_out, byte_colon);
+        let key = linked_table::front(table);
+        let key_value = *option::borrow(key);
+        let sales = linked_table::borrow(table, key_value);
+        sales
+        // loop the vector
 
-    //         let val_str = linked_table::borrow(table, key_value);
-    //         vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
-    //         vector::push_back(&mut vec_out, byte_comma);
-    //         vector::push_back(&mut vec_out, byte_semi);
-    //         next = linked_table::next(table, key_value);
-    //     };
-    //     &vec_out
-    // }
+        // let next = linked_table::next(table, *option::borrow(key));
+        // while (option::is_some(next)) {
+        //     let key_value = *option::borrow(next);
+        //     vector::append(&mut vec_out, *string::bytes(&key_value));
+        //     vector::push_back(&mut vec_out, byte_colon);
+
+        //     let val_str = linked_table::borrow(table, key_value);
+        //     vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+        //     vector::push_back(&mut vec_out, byte_comma);
+        //     vector::push_back(&mut vec_out, byte_semi);
+        //     next = linked_table::next(table, key_value);
+        // };
+        // &vec_out
+    }
 
     public entry fun get_market_sales(global: &MarketGlobal, _clock:&Clock) : string::String {
         // ;
         let byte_semi = ascii::byte(ascii::char(59));
         let table = &global.market_sales;
         if (linked_table::is_empty(table)) {
-            return utf8(b"none");
+            return utf8(b"none")
         };
         let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
         let key = linked_table::front(table);
@@ -115,26 +114,26 @@ module shui_module::market2 {
         let sales_vec = linked_table::borrow(table, key_value);
         vector::append(&mut vec_out, print_onsale_vector(sales_vec));
         let next = linked_table::next(table, *option::borrow(key));
-        vector::push_back(&mut vec_out, byte_semi);
         while (option::is_some(next)) {
             key_value = *option::borrow(next);
             sales_vec = linked_table::borrow(table, key_value);
             vector::append(&mut vec_out, print_onsale_vector(sales_vec));
-            vector::push_back(&mut vec_out, byte_semi);
+            next = linked_table::next(table, key_value);
         };
         utf8(vec_out)
     }
 
     fun print_onsale_vector(my_sales:&vector<OnSale>): vector<u8> {
         // ;
-        let _byte_semi = ascii::byte(ascii::char(59));
+        let byte_semi = ascii::byte(ascii::char(59));
         // ,
         let byte_comma = ascii::byte(ascii::char(44));
-        let vec_out:vector<u8> = *string::bytes(&string::utf8(b"0x"));
+        let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
         let (i, len) = (0u64, vector::length(my_sales));
         while (i < len) {
             let onSale:&OnSale = vector::borrow(my_sales, i);
             let onsale_id_str = address::to_string(object::uid_to_address(&onSale.id));
+            vector::append(&mut vec_out, *string::bytes(&string::utf8(b"0x")));
             vector::append(&mut vec_out, *string::bytes(&onsale_id_str));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, *string::bytes(&onSale.name));
@@ -146,12 +145,13 @@ module shui_module::market2 {
             vector::append(&mut vec_out, *string::bytes(&onSale.type));
             vector::push_back(&mut vec_out, byte_comma);
             let owner_addr_str = address::to_string(onSale.owner);
+            vector::append(&mut vec_out, *string::bytes(&string::utf8(b"0x")));
             vector::append(&mut vec_out, *string::bytes(&owner_addr_str));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.onsale_time));
+            vector::push_back(&mut vec_out, byte_semi);
             i = i + 1
         };
-        print(&utf8(vec_out));
         vec_out
     }
 
