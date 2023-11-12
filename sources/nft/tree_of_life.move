@@ -15,19 +15,14 @@ module shui_module::tree_of_life {
     use shui_module::mission;
     use shui_module::metaIdentity::{Self, MetaIdentity, get_items};
     use shui_module::shui_ticket::{Self};
-    use std::debug::{print};
     use std::string::{Self, String, utf8};
     use sui::event;
 
     friend shui_module::market;
-
-    const DAY_IN_MS: u64 = 86_400_000;
-    const HOUR_IN_MS: u64 = 3_600_000;
-    const MIN_IN_MILLS: u64 = 60_000;
+    friend shui_module::market2;
     const SECONDS_IN_MILLS: u64 = 1_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
-    const ERR_WRONG_TYPE:u64 = 0x002;
     const ERR_COIN_NOT_ENOUGH:u64 = 0x003;
     const ERR_INVALID_NAME:u64 = 0x004;
     const ERR_INVALID_TYPE:u64 = 0x005;
@@ -180,9 +175,8 @@ module shui_module::tree_of_life {
     }
 
     public(friend) fun extract_drop_items(meta:&mut MetaIdentity, name:string::String, num:u64) {
-        let type = get_element_type_by_name(name);
+        let _type = get_element_type_by_name(name);
         let item_type = get_item_type_by_name(name);
-        let vec;
         let items = get_items(meta);
         if (item_type == string::utf8(b"fragment")) {
             let vec = items::extract_items<Fragment>(items, name, num);

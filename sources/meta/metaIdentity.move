@@ -12,8 +12,6 @@ module shui_module::metaIdentity {
     const ERR_NO_PERMISSION:u64 = 0x004;
     const ERR_UNBINDED:u64 = 0x003;
     const ERR_ALREADY_BIND:u64 = 0x008;
-    const ERR_ALPHA_QUOTA_EXHAUSTED:u64 = 0x009;
-    const ERR_BETA_QUOTA_EXHAUSTED:u64 = 0x010;
     const ERR_INVALID_TYPE:u64 = 0x011;
     const ERR_PHONE_HAS_BEEN_BINDED:u64= 0x012;
     const ERR_ADDRESS_HAS_BEEN_BINDED:u64= 0x013;

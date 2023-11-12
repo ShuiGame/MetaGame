@@ -3,13 +3,11 @@ module shui_module::market {
     use std::string::{Self, String, utf8};
     use std::type_name::{Self, into_string};
     use std::vector;
-
+    use sui::sui::{SUI};
     use sui::coin::{Self, Coin, value};
     use sui::event;
     use sui::kiosk::{Self, KioskOwnerCap, Kiosk};
     use sui::object::Self;
-    use sui::pay;
-    use sui::sui::SUI;
     use sui::transfer;
     use sui::transfer_policy::{Self as policy, TransferPolicy};
     use sui::tx_context::{Self, TxContext, sender};
@@ -176,7 +174,7 @@ module shui_module::market {
         cap: &kiosk::KioskOwnerCap,
         meta:&mut MetaIdentity,
         virtual_item: address,
-        ctx: &mut TxContext
+        _ctx: &mut TxContext
     ) {
 
         let game_credential = inner_unlist(
@@ -189,7 +187,6 @@ module shui_module::market {
 
         // create and add to items
         tree_of_life::fill_items(meta, name, num);
-
     }
 
     public fun get_collection_name<Obj>(

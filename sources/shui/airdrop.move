@@ -15,7 +15,6 @@ module shui_module::airdrop {
     const ERR_NO_PERMISSION:u64 = 0x002;
     const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
     const ERR_AIRDROP_NOT_START:u64 = 0x005;
-    const ERR_HAS_CLAIMED:u64 = 0x006;
     const ERR_INACTIVE_META:u64 = 0x007;
     const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
     const DAY_IN_MS: u64 = 86_400_000;

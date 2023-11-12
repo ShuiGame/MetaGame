@@ -22,32 +22,9 @@ module shui_module::shui {
     friend shui_module::swap;
     friend shui_module::founder_team_reserve;
     friend shui_module::mission;
-
-    const TYPE_FOUNDER:u64 = 0;
-    const TYPE_CO_FOUNDER:u64 = 1;
-    const TYPE_ENGINE_TEAM:u64 = 2;
-    const TYPE_TECH_TEAM:u64 = 3;
-    const TYPE_PROMOTE_TEAM:u64 = 4;
-    const TYPE_PARTNER:u64 = 5;
-    const TYPE_ANGLE_INVEST:u64 = 6;
-    const TYPE_PUBLIC:u64 = 7;
-    const TYPE_META_VIP:u64 = 8;
     const SHUI_ICON_URL:vector<u8> = b"https://nftstorage.link/ipfs/bafybeieqqos2upvmmxzmauv6cf53ddegpjc5zkrvbpriz7iajamcxikv4y";
-
-    const ERR_CHARACTOR_CREATED:u64 = 0x001;
-    const ERR_BINDED:u64 = 0x002;
-    const ERR_UNBINDED:u64 = 0x003;
     const ERR_NO_PERMISSION:u64 = 0x004;
-    const ERR_NOT_IN_WHITELIST:u64 = 0x005;
-    const EXCEED_SWAP_LIMIT:u64 = 0x006;
-    const ERR_BALANCE_NOT_ENOUGH:u64 = 0x007;
-    const ERR_ALREADY_BIND:u64 = 0x008;
-    const ERR_SWAP_MIN_ONE_SUI:u64 = 0x009;
-    const ERR_INVALID_TYPE:u64 = 0x010;
-    const ERR_META_HAS_CREATED:u64 = 0x011;
-
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
-    const FOUNDATION_RESERVE:u64 = 50_000_000;
     const DAO_RESERVE:u64 = 50_000_000;
     const GAME_RESERVE:u64 = 1_000_000_000;
     const FOUNDER_TEAM_RESERVE:u64 = 21_000_000;

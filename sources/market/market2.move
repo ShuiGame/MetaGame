@@ -1,26 +1,23 @@
 module shui_module::market2 {
     use std::ascii;
     use std::string::{Self, String, utf8};
-    use std::type_name::{Self, into_string};
     use std::vector;
-
-    use sui::coin::{Self, Coin, value};
-    use sui::event;
-    use sui::kiosk::{Self, KioskOwnerCap, Kiosk};
-    use sui::object::Self;
-    use sui::pay;
+    use sui::linked_table::{Self, LinkedTable};
+    use sui::coin::{Self, Coin, value, destroy_zero};
+    use sui::object::{UID, Self};
+    use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::transfer;
-    use sui::transfer_policy::{Self as policy, TransferPolicy};
-    use sui::tx_context::{Self, TxContext, sender};
-    use sui::dynamic_field;
-    use shui_module::comparator::{compare, is_equal};
+    use sui::address;
+    use sui::tx_context::{Self, TxContext};
+    use std::option::{Self};
+    use sui::clock::{Self, Clock};
     use shui_module::metaIdentity::MetaIdentity;
     use shui_module::tree_of_life::Self;
+    use shui_module::shui;
 
-    const ERR_INSUFFICIENT_ROYALTY_COIN: u64 = 0x01;
     const ERR_SALES_NOT_EXIST: u64 = 0x02;
-    const ERR_NOT_OWNER: u64 = 0X03;
+    const ERR_NOT_OWNER: u64 = 0x03;
     const ERR_EXCEED_MAX_ON_SALE_NUM: u64 = 0x04;
 
     struct MARKET2 has drop {}
@@ -28,16 +25,16 @@ module shui_module::market2 {
     struct MarketGlobal has key {
         id: UID,
         balance_SHUI: Balance<shui::SHUI>,
-        balance_SUI: Balance<sui::SUI>,
+        balance_SUI: Balance<SUI>,
 
         // wallet -> table<objid -> OnSaleInfo>
-        market_sales = LinkedTable<address, vector<OnSale>>
+        market_sales : LinkedTable<address, vector<OnSale>>
     }
 
-    struct OnSale has store, copy {
+    struct OnSale has key, store {
         id: UID,
         name: String,
-        num: u8,
+        num: u64,
         price: u64,
         owner: address,
         type: String,
@@ -55,181 +52,199 @@ module shui_module::market2 {
         transfer::share_object(global);
     }
 
-    fun init(ctx: &mut TxContext) {
+    fun init(_witness: MARKET2, ctx: &mut TxContext) {
         let global = MarketGlobal {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
-            balance_SUI: balance::zero,
+            balance_SUI: balance::zero(),
             market_sales: linked_table::new<address, vector<OnSale>>(ctx),
         };
         transfer::share_object(global);
     }
 
-    fun new_sale(name:String, num:u8, price:u64, clock:&Clock, type:String, ctx:&mut TxContext): OnSale {
+    fun new_sale(name:String, num:u64, price:u64, clock:&Clock, type:String, ctx:&mut TxContext): OnSale {
         let now = clock::timestamp_ms(clock);
         OnSale {
             id: object::new(ctx),
             name: name,
             price: price,
             num: num,
+            owner:tx_context::sender(ctx),
             type: type,
             onsale_time: now
         }
     }
 
-    public entry get_market_sales2(global: &MarketGlobal) : &vector<OnSale> {
-        let vec_out = vector::new<OnSale>;
-        let table = &global.market_sales;
-        if (linked_table::is_empty(table)) {
-            return string::utf8(b"none")
-        };
-        let key:address = linked_table::front(table);
-        let key_value = *option::borrow(key);
-        let sales = linked_table::borrow(table, key_value);
-        // loop the vector
-        
+    // public entry fun get_market_sales2(global: &MarketGlobal) : &vector<OnSale> {
+    //     let vec_out = vector::empty<OnSale>;
+    //     let table = &global.market_sales;
+    //     if (linked_table::is_empty(table)) {
+    //         return string::utf8(b"none")
+    //     };
+    //     let key:address = linked_table::front(table);
+    //     let key_value = *option::borrow(key);
+    //     let sales = linked_table::borrow(table, key_value);
+    //     // loop the vector
 
-        let next = linked_table::next(table, *option::borrow(key));
-        while (option::is_some(next)) {
-            let key_value = *option::borrow(next);
-            vector::append(&mut vec_out, *string::bytes(&key_value));
-            vector::push_back(&mut vec_out, byte_colon);
+    //     let next = linked_table::next(table, *option::borrow(key));
+    //     while (option::is_some(next)) {
+    //         let key_value = *option::borrow(next);
+    //         vector::append(&mut vec_out, *string::bytes(&key_value));
+    //         vector::push_back(&mut vec_out, byte_colon);
 
-            let val_str = linked_table::borrow(table, key_value);
-            vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
-            vector::push_back(&mut vec_out, byte_comma);
-            let desc_str = get_desc_by_name(itemGlobal, key_value);
-            vector::append(&mut vec_out, *string::bytes(&desc_str));
-            vector::push_back(&mut vec_out, byte_semi);
-            next = linked_table::next(table, key_value);
-        };
-        &vec_out
-    }
+    //         let val_str = linked_table::borrow(table, key_value);
+    //         vector::append(&mut vec_out, numbers_to_ascii_vector(*val_str));
+    //         vector::push_back(&mut vec_out, byte_comma);
+    //         vector::push_back(&mut vec_out, byte_semi);
+    //         next = linked_table::next(table, key_value);
+    //     };
+    //     &vec_out
+    // }
 
-    public entry get_market_sales(global: &MarketGlobal, clock:&Clock) : String {
+    public entry fun get_market_sales(global: &MarketGlobal, _clock:&Clock) : vector<u8> {
         // ;
         let byte_semi = ascii::byte(ascii::char(59));
         let table = &global.market_sales;
         if (linked_table::is_empty(table)) {
-            return string::utf8(b"none")
+            return *string::bytes(&string::utf8(b"none"))
         };
         let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
-        let key:address = linked_table::front(table);
+        let key = linked_table::front(table);
         let key_value = *option::borrow(key);
-        let sales_vec = link_table::borrow(table, &key_value);
-        vector::push_back(&mut vec_out, print_onsale_vector(sales_vec));
+        let sales_vec = linked_table::borrow(table, key_value);
+        vector::append(&mut vec_out, print_onsale_vector(sales_vec));
         let next = linked_table::next(table, *option::borrow(key));
         vector::push_back(&mut vec_out, byte_semi);
         while (option::is_some(next)) {
             key_value = *option::borrow(next);
-            ales_vec = link_table::borrow(table, &key_value);
-            vector::push_back(&mut vec_out, print_onsale_vector(sales_vec));
+            sales_vec = linked_table::borrow(table, key_value);
+            vector::append(&mut vec_out, print_onsale_vector(sales_vec));
             vector::push_back(&mut vec_out, byte_semi);
         };
         vec_out
     }
 
-    fun print_onsale_vector(my_sales:&vector<OnSale>): bytes {
+    fun print_onsale_vector(my_sales:&vector<OnSale>): vector<u8> {
         // ;
-        let byte_semi = ascii::byte(ascii::char(59));
+        let _byte_semi = ascii::byte(ascii::char(59));
         // ,
         let byte_comma = ascii::byte(ascii::char(44));
         let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
-        let (i, len) = (0u64, vector::length(&my_sales));
+        let (i, len) = (0u64, vector::length(my_sales));
         while (i < len) {
             let onSale:&OnSale = vector::borrow(my_sales, i);
-            vector::append(&mut vec_out, object::uid_to_bytes(onSale.id));
+            vector::append(&mut vec_out, object::uid_to_bytes(&onSale.id));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, *string::bytes(value.name));
+            vector::append(&mut vec_out, *string::bytes(&onSale.name));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, numbers_to_ascii_vector(value.num));
+            vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.num));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, numbers_to_ascii_vector(value.price));
+            vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.price));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, *string::bytes(value.type));
+            vector::append(&mut vec_out, *string::bytes(&onSale.type));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, value.owner);
+            vector::append(&mut vec_out, address::to_bytes(onSale.owner));
             vector::push_back(&mut vec_out, byte_comma);
-            vector::append(&mut vec_out, numbers_to_ascii_vector(value.onsale_time));
+            vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.onsale_time));
             i = i + 1
         };
         vec_out
     }
 
-    public entry unlist_game_item (
+    public entry fun unlist_game_item (
         global:&mut MarketGlobal, 
         meta: &mut MetaIdentity, 
         owner: address,
         name: String,
         num: u64,
-        clock: &Clock, 
+        price: u64,
+        _clock: &Clock, 
         ctx: &mut TxContext
     ) {
         // todo:anyone can unlist item out of deadline
-        assert!(owner == tx_context::sender(TxContext), ERR_NOT_OWNER);
+        assert!(owner == tx_context::sender(ctx), ERR_NOT_OWNER);
         assert!(linked_table::contains(&global.market_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.market_sales, owner);
-        let (i, len) = (0u64, vector::length(&his_sales));
+        let (i, len) = (0u64, vector::length(his_sales));
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
-            if (onSale.name == name && onSale.num == num && onSale.price <= value(merge_coins)) {
+            if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                if (vector::length(&his_sales) == 0) {
-                    linked_table::remove(&mut global.market_sales, owner);
-                };
-                let balance = coin::into_balance<SUI>(
-                    coin::split<SUI>(&mut merged_coin, sale.price, ctx);
-                );
-                balance::join(&mut global.balance_SUI, balance);
-                if (coin::value(&merged_coin) > 0) {
-                    transfer::public_transfer(merged_coin, tx_context::sender(ctx))
-                } else {
-                    destroy_zero(merged_coin);
+                let OnSale {id, name:_, num:_, price:_, owner:_, type:_, onsale_time:_} = sale;
+                object::delete(id);
+                if (vector::length(his_sales) == 0) {
+                    let vec = linked_table::remove(&mut global.market_sales, owner);
+                    vector::destroy_empty(vec);
                 };
                 tree_of_life::fill_items(meta, name, num);
-                break;
+                break
             };
             i = i + 1
         };
     }
 
-    public entry purchase_game_item (
+    public entry fun purchase_game_item (
         global:&mut MarketGlobal, 
         meta: &mut MetaIdentity, 
         owner: address,
         name: String,
         num: u64,
         payment:vector<Coin<SUI>>,
-        clock: &Clock, 
+        _clock: &Clock, 
         ctx: &mut TxContext) {
-        let merged_coin = merge_coins(coins, ctx);
+        let merged_coins = merge_coins(payment, ctx);
         assert!(linked_table::contains(&global.market_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.market_sales, owner);
-        let (i, len) = (0u64, vector::length(&his_sales));
+        let (i, len) = (0u64, vector::length(his_sales));
+        let value = value(&merged_coins);
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
-            if (onSale.name == name && onSale.num == num && onSale.price <= value(merge_coins)) {
+            if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                if (vector::length(&his_sales) == 0) {
-                    linked_table::remove(&mut global.market_sales, owner);
+                let OnSale {id, name:_, num:_, price, owner:_, type:_, onsale_time:_} = sale;
+                object::delete(id);
+                if (vector::length(his_sales) == 0) {
+                    let vec = linked_table::remove(&mut global.market_sales, owner);
+                    vector::destroy_empty(vec);
                 };
                 let balance = coin::into_balance<SUI>(
-                    coin::split<SUI>(&mut merged_coin, sale.price, ctx);
+                    coin::split<SUI>(&mut merged_coins, price, ctx)
                 );
                 balance::join(&mut global.balance_SUI, balance);
-                if (coin::value(&merged_coin) > 0) {
-                    transfer::public_transfer(merged_coin, tx_context::sender(ctx))
-                } else {
-                    destroy_zero(merged_coin);
-                };
                 tree_of_life::fill_items(meta, name, num);
-                break;
+                break
             };
             i = i + 1
         };
+        value = value(&merged_coins);
+        if (value > 0) {
+            transfer::public_transfer(merged_coins, tx_context::sender(ctx))
+        } else {
+            destroy_zero(merged_coins);
+        };
     }
 
-    public entry list_game_item (
+
+    public fun merge_coins(
+        coins: vector<Coin<SUI>>,
+        ctx: &mut TxContext,
+    ): Coin<SUI> {
+        let len = vector::length(&coins);
+        if (len > 0) {
+            let base_coin = vector::pop_back(&mut coins);
+            while (!vector::is_empty(&coins)) {
+                coin::join(&mut base_coin, vector::pop_back(&mut coins));
+            };
+            vector::destroy_empty(coins);
+
+            base_coin
+        } else {
+            vector::destroy_empty(coins);
+            coin::zero<SUI>(ctx)
+        }
+    }
+
+    public entry fun list_game_item (
         global: &mut MarketGlobal,
         meta: &mut MetaIdentity,
         price: u64,
@@ -248,14 +263,14 @@ module shui_module::market2 {
             let new_sale = new_sale(name, num, price, clock, type, ctx);
             vector::push_back(my_sales, new_sale);
         } else {
-            let new_sales = vector::new<OnSale>();
+            let new_sales = vector::empty<OnSale>();
             let new_sale = new_sale(name, num, price, clock, type, ctx);
             vector::push_back(&mut new_sales, new_sale);
             linked_table::push_back(sales, owner, new_sales);
         };
     }
 
-    fun numbers_to_ascii_vector(val: u16): vector<u8> {
+    fun numbers_to_ascii_vector(val: u64): vector<u8> {
         let vec = vector<u8>[];
         loop {
             let b = val % 10;

@@ -1,15 +1,10 @@
 module shui_module::mission {
     use sui::object::{UID};
-    use sui::event;
     use sui::table::{Self, Table};
     use sui::tx_context::{Self, TxContext};
     use sui::transfer;
-    use sui::object::{Self, ID};
-    use sui::coin::{Self, Coin};
-    use sui::sui::SUI;
+    use sui::object::{Self};
     use std::string::{String, utf8, bytes};
-    use sui::package;
-    use sui::pay;
     use sui::clock::{Self, Clock};
     use sui::balance::{Self, Balance};
 
@@ -17,11 +12,9 @@ module shui_module::mission {
     use std::ascii;
     use shui_module::metaIdentity::{Self, MetaIdentity};
     use std::debug::print;
-    use sui::display;
-    use shui_module::tree_of_life::{Self};
+    use shui_module::shui;
     use sui::linked_table::{Self, LinkedTable};
     use std::option::{Self};
-    use shui_module::shui::{Self};
     friend shui_module::tree_of_life;
     friend shui_module::airdrop;
 
@@ -198,7 +191,6 @@ module shui_module::mission {
         let user_record = table::borrow_mut(&mut mission_info.missions, metaId);
         assert!(!user_record.is_claimed, ERR_IS_ALREADY_CLAIMED);
         assert!(user_record.current_process >= mission_info.goal_process, ERR_PROGRESS_NOT_REACH);
-        let record = mission_info.reward;
         // todo: send item
 
         user_record.is_claimed = true;
@@ -271,11 +263,11 @@ module shui_module::mission {
         linked_table::push_back(&mut global.mission_records, mission3_name, mission3);
     }
 
-    public entry fun delete_mission(global: &mut MissionGlobal, mission:String, clock:&Clock, ctx:&mut TxContext) {
+    public entry fun delete_mission(global: &mut MissionGlobal, mission:String, _clock:&Clock, ctx:&mut TxContext) {
         assert!(tx_context::sender(ctx) == @account, ERR_NO_PERMISSION);
         assert!(linked_table::contains(&global.mission_records, mission), ERR_MISSION_EXIST);
         let mission_info = linked_table::remove(&mut global.mission_records, mission);
-        let MissionInfo {name, desc, goal_process, missions, deadline, reward} = mission_info; 
+        let MissionInfo {name:_, desc:_, goal_process:_, missions, deadline:_, reward:_} = mission_info; 
         table::drop(missions);
     }
 }

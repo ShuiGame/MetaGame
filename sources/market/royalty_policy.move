@@ -7,7 +7,6 @@ module shui_module::royalty_policy {
         TransferPolicy,
         TransferPolicyCap,
         TransferRequest,
-        remove_rule
     };
     use sui::package::Publisher;
     use sui::transfer;

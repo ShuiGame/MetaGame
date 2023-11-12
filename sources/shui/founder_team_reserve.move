@@ -11,11 +11,6 @@ module shui_module::founder_team_reserve {
 
     const ERR_INVALID_PHASE:u64 = 0x001;
     const ERR_NO_PERMISSION:u64 = 0x002;
-    const ERR_HAS_CLAIMED_IN_24HOUR:u64 = 0x004;
-    const ERR_founderTeam_NOT_START:u64 = 0x005;
-    const ERR_HAS_CLAIMED:u64 = 0x006;
-    const ERR_INACTIVE_META:u64 = 0x007;
-    const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
     const ERR_EXCEED_LIST_LIMIT:u64 = 0x009;
     const ERR_RESERVE_IS_lOCKED:u64 = 0x010;
     const ERR_INVALID_TYPE:u64 = 0x011;

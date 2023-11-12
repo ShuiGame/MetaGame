@@ -22,16 +22,9 @@ module shui_module::swap {
     const ERR_NOT_START:u64 = 0x005;
     const ERR_INVALID_PHASE:u64 = 0x006;
     const ERR_INVALID_MSG:u64 = 0x007;
-
-    const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const WHITELIST_SWAP_LIMIT:u64 = 100;
     const WHITELIST_MAX_NUM:u64 = 10_000;
-
-    const RATIO_NFT:u64 = 100;
-    const RATIO_ORIGIN:u64 = 10;
-    const RATIO_ANGLE:u64 = 5;
-    const RATIO_RESERVE:u64 = 1;
 
     struct SwapGlobal has key {
         id: UID,
