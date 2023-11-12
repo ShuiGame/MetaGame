@@ -210,7 +210,6 @@ module shui_module::market2 {
         };
     }
 
-
     public fun merge_coins(
         coins: vector<Coin<SUI>>,
         ctx: &mut TxContext,
