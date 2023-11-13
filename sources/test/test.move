@@ -339,7 +339,7 @@ module shui_module::airdrop_test {
             market2::list_game_item(&mut market_global, &mut meta, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
             return_to_sender(test, meta);
 
-            let res = market2::get_market_sales(&market_global, &clock);
+            let res = market2::get_game_sales(&market_global, &clock);
             print(&res);
 
             return_shared(market_global);
@@ -357,7 +357,7 @@ module shui_module::airdrop_test {
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
             return_to_sender(test, meta);
-            let res = market2::get_market_sales(&market_global, &clock);
+            let res = market2::get_game_sales(&market_global, &clock);
             print(&res);
 
             return_shared(market_global);
@@ -389,7 +389,7 @@ module shui_module::airdrop_test {
             vector::push_back(&mut coins, coin);
             market2::purchase_game_item(&mut market_global, &mut meta, @user, utf8(b"fruit"), 1, coins, &clock, ctx(test));
             return_to_sender(test, meta);
-            let res = market2::get_market_sales(&market_global, &clock);
+            let res = market2::get_game_sales(&market_global, &clock);
             print(&res);
 
             return_shared(market_global);
