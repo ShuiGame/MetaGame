@@ -32,9 +32,8 @@ module shui_module::airdrop_test {
     use shui_module::swap::{Self};
     use shui_module::tree_of_life::{Self};
     use shui_module::crypto::{Self};
-    use shui_module::market2;
+    use shui_module::market;
     use shui_module::boat_ticket::{Self};
-    use shui_module::market::{Self};
     use shui_module::mission;
     use sui::object::{Self};
     use sui::kiosk::{Self};
@@ -99,11 +98,6 @@ module shui_module::airdrop_test {
         pay::keep(coin, ctx(test));
     }
 
-    // fun print_ids(test: &Scenario) {
-    //     let ids = ids_for_sender<Coin<shui::SHUI>>(test);
-    //     print(&ids);
-    // }
-
     // #[test]
     fun test_crypto() {
         let scenario = scenario();
@@ -117,24 +111,6 @@ module shui_module::airdrop_test {
             print(&string::utf8(b"test:"));
             print(&res);
             // print(hex::decode(b"This is a test of the tsunami alert system."));
-        };
-        end(scenario);
-    }
-
-    // #[test]
-    fun test_name_type_transfer() {
-        let scenario = scenario();
-        let test = &mut scenario;
-        let admin = @account;
-
-        next_tx(test, admin);
-        {
-            let res = tree_of_life::get_item_type_by_name(string::utf8(b"water_element_holy"));
-            let res2 = tree_of_life::get_element_type_by_name(string::utf8(b"water_element_holy"));
-            let res3 = tree_of_life::get_item_type_by_name(string::utf8(b"fragment_holy"));
-            print(&res);
-            print(&res2);
-            print(&res3);
         };
         end(scenario);
     }
@@ -158,7 +134,7 @@ module shui_module::airdrop_test {
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
             mission::init_for_test(ctx(test));
-            market2::init_for_test(ctx(test));
+            market::init_for_test(ctx(test));
         };
 
         // funds split
@@ -213,6 +189,18 @@ module shui_module::airdrop_test {
         next_tx(test, admin);
         {
             boat_ticket::init_for_test(ctx(test));
+            next_epoch(test, admin);
+            let boatGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            boat_ticket::claim_ticket(&mut boatGlobal, ctx(test));
+            return_shared(boatGlobal);
+        };
+
+        next_tx(test, user);
+        {
+            next_epoch(test, user);
+            let boatGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
+            boat_ticket::claim_ticket(&mut boatGlobal, ctx(test));
+            return_shared(boatGlobal);
         };
 
         next_tx(test, admin);
@@ -273,27 +261,6 @@ module shui_module::airdrop_test {
             print_missions(test, &clock);
         };
 
-        // boat ticket test
-        next_tx(test, admin);
-        {
-            let ticketGlobal = take_shared<boat_ticket::BoatTicketGlobal>(test);
-            boat_ticket::claim_ticket(&mut ticketGlobal, ctx(test));
-            return_shared(ticketGlobal);
-            next_epoch(test, admin);
-            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
-            let addr = object::id_address(&ticket);
-
-            market::list(ticket, 10, ctx(test));
-            next_epoch(test, admin);
-
-            let kiosk = take_from_sender<kiosk::Kiosk>(test);
-            let cap = take_from_sender<kiosk::KioskOwnerCap>(test);
-            market::unlist<boat_ticket::BoatTicket>(&mut kiosk, &cap, addr, ctx(test));
-            return_to_sender(test, kiosk);
-            return_to_sender(test, cap);
-            next_epoch(test, admin);
-        };
-
         // water down
         next_tx(test, admin);
         {
@@ -331,15 +298,16 @@ module shui_module::airdrop_test {
 
         next_tx(test, admin);
         {
-            print(&string::utf8(b"-----------------start market2 test---------------"));
-            let market_global =  take_shared<market2::MarketGlobal>(test);
+            print(&string::utf8(b"-----------------start market test---------------"));
+            let market_global =  take_shared<market::MarketGlobal>(test);
             let itemGlobal = take_shared<items::ItemGlobal>(test);
+            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
-            market2::list_game_item(&mut market_global, &mut meta, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
+            market::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, utf8(b"SUI"), &clock, ctx(test));
+            market::list_game_item(&mut market_global, &mut meta, utf8(b"water_element_memory"), 1,  1, utf8(b"SUI"), &clock, ctx(test));
+            market::list_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, utf8(b"boat_ticket"), 1132, utf8(b"SUI"), &clock, ticket, ctx(test));
             return_to_sender(test, meta);
-
-            let res = market2::get_game_sales(&market_global, &clock);
+            let res = market::get_game_sales(&market_global, &clock);
             print(&res);
 
             return_shared(market_global);
@@ -351,15 +319,16 @@ module shui_module::airdrop_test {
 
         next_tx(test, user);
         {
-            print(&string::utf8(b"-----------------start market2 test---------------"));
-            let market_global =  take_shared<market2::MarketGlobal>(test);
+            print(&string::utf8(b"-----------------start user list test---------------"));
+            let market_global =  take_shared<market::MarketGlobal>(test);
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            market2::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, &clock, ctx(test));
+            let ticket = take_from_sender<boat_ticket::BoatTicket>(test);
+            market::list_game_item(&mut market_global, &mut meta, utf8(b"fruit"), 1,  1, utf8(b"SUI"), &clock, ctx(test));
+            market::list_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, utf8(b"boat_ticket"), 12, utf8(b"SUI"), &clock, ticket, ctx(test));
             return_to_sender(test, meta);
-            let res = market2::get_game_sales(&market_global, &clock);
+            let res = market::get_game_sales(&market_global, &clock);
             print(&res);
-
             return_shared(market_global);
             return_shared(itemGlobal);
         };
@@ -367,34 +336,53 @@ module shui_module::airdrop_test {
         // unlist test
         next_tx(test, admin);
         {
-            print(&string::utf8(b"-----------------start market2 test---------------"));
-            let market_global =  take_shared<market2::MarketGlobal>(test);
+            print(&string::utf8(b"-----------------start unlist test---------------"));
+            let market_global =  take_shared<market::MarketGlobal>(test);
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            market2::unlist_game_item(&mut market_global, &mut meta, @account, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
+            market::unlist_game_item(&mut market_global, &mut meta, @account, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
+            market::unlist_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, @account, utf8(b"boat_ticket"), 1, 1132, &clock, ctx(test));
             return_to_sender(test, meta);
             return_shared(market_global);
+            return_shared(itemGlobal);
+        };
+
+        next_tx(test, admin);
+        {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            print_items(&itemGlobal, test);
             return_shared(itemGlobal);
         };
 
         // market purchase test
         next_tx(test, admin);
         {
-            print(&string::utf8(b"-----------------start market2 test---------------"));
-            let market_global =  take_shared<market2::MarketGlobal>(test);
+            print(&string::utf8(b"-----------------start purchase test---------------"));
+            let market_global =  take_shared<market::MarketGlobal>(test);
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
             let coin = coin::mint_for_testing<SUI>(1, ctx(test));
             let coins = vector::empty<Coin<SUI>>();
+            let coin2 = coin::mint_for_testing<SUI>(12, ctx(test));
+            let coins2 = vector::empty<Coin<SUI>>();
             vector::push_back(&mut coins, coin);
-            market2::purchase_game_item(&mut market_global, &mut meta, @user, utf8(b"fruit"), 1, coins, &clock, ctx(test));
+            vector::push_back(&mut coins2, coin2);
+            market::purchase_game_item(&mut market_global, &mut meta, @user, utf8(b"fruit"), 1, coins, &clock, ctx(test));
+            market::purchase_nft_item<SUI, boat_ticket::BoatTicket>(&mut market_global, &mut meta, @user, utf8(b"boat_ticket"), 1, coins2, &clock, ctx(test));
             return_to_sender(test, meta);
-            let res = market2::get_game_sales(&market_global, &clock);
+            let res = market::get_game_sales(&market_global, &clock);
             print(&res);
-
             return_shared(market_global);
             return_shared(itemGlobal);
         };
+
+        next_tx(test, admin);
+        {
+            let itemGlobal = take_shared<items::ItemGlobal>(test);
+            print_items(&itemGlobal, test);
+            return_shared(itemGlobal);
+        };
+
         clock::destroy_for_testing(clock);  
         end(scenario);
     }
@@ -417,14 +405,13 @@ module shui_module::airdrop_test {
             founder_team_reserve::init_for_test(ctx(test));
             tree_of_life::init_for_test(ctx(test));
             items::init_for_test(ctx(test));
-            market2::init_for_test(ctx(test));
+            market::init_for_test(ctx(test));
         };
 
         // funds split
         next_tx(test, admin);
         {
             let shuiGlobal = take_shared<shui::Global>(test);
-
             let airdropGlobal = take_shared<airdrop::AirdropGlobal>(test);
             let reserveGlobal = take_shared<founder_team_reserve::FounderTeamGlobal>(test);
             let swapGlobal = take_shared<swap::SwapGlobal>(test);

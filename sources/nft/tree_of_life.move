@@ -19,7 +19,6 @@ module shui_module::tree_of_life {
     use sui::event;
 
     friend shui_module::market;
-    friend shui_module::market2;
     const SECONDS_IN_MILLS: u64 = 1_000;
     const AMOUNT_DECIMAL: u64 = 1_000_000_000;
     const ERR_INTERVAL_TIME_ONE_DAY:u64 = 0x001;
