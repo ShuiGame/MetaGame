@@ -10,6 +10,7 @@ module shui_module::boat_ticket {
     use sui::display;
     use std::vector;
     use sui::pay;
+    use shui_module::shui;
     use shui_module::royalty_policy::{Self};
 
     const DEFAULT_LINK: vector<u8> = b"https://shui.one";
@@ -19,6 +20,7 @@ module shui_module::boat_ticket {
     const CREATOR: vector<u8> = b"metaGame";
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
     const ERR_SWAP_MIN_ONE_SUI:u64 = 0x004;
+    const ERR_NO_PERMISSION:u64 = 0x005;
 
     struct BOAT_TICKET has drop {}
     struct BoatTicket has key, store {
@@ -30,7 +32,7 @@ module shui_module::boat_ticket {
 
     struct BoatTicketGlobal has key {
         id: UID,
-        balance_SUI: Balance<SUI>,
+        balance_SHUI: Balance<shui::SHUI>,
         creator: address,
         num:u64
     }
@@ -43,15 +45,15 @@ module shui_module::boat_ticket {
         ticket.name
     }
 
-    public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+    public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<shui::SHUI>>, ctx:&mut TxContext) {
         let recepient = tx_context::sender(ctx);
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) >= 1 * AMOUNT_DECIMAL, ERR_SWAP_MIN_ONE_SUI);
-        let balance = coin::into_balance<SUI>(
-            coin::split<SUI>(&mut merged_coin, 100 * AMOUNT_DECIMAL, ctx)
+        assert!(coin::value(&merged_coin) >= 100 * AMOUNT_DECIMAL, ERR_SWAP_MIN_ONE_SUI);
+        let balance = coin::into_balance<shui::SHUI>(
+            coin::split<shui::SHUI>(&mut merged_coin, 100 * AMOUNT_DECIMAL, ctx)
         );
-        balance::join(&mut global.balance_SUI, balance);
+        balance::join(&mut global.balance_SHUI, balance);
         if (coin::value(&merged_coin) > 0) {
             transfer::public_transfer(merged_coin, recepient)
         } else {
@@ -66,19 +68,6 @@ module shui_module::boat_ticket {
         global.num = global.num + 1;
         transfer::transfer(ticket, tx_context::sender(ctx));
     }
-
-    // #[test_only]
-    public entry fun claim_ticket(global:&mut BoatTicketGlobal, ctx:&mut TxContext) {
-        let ticket = BoatTicket {
-            id:object::new(ctx),
-            name:utf8(b"Shui Meta Ticket"),
-            index:global.num,
-            whitelist_claimed: false
-        };
-        global.num = global.num + 1;
-        transfer::transfer(ticket, tx_context::sender(ctx));
-    }
-
 
     fun init(otw: BOAT_TICKET, ctx: &mut TxContext) {
         // https://docs.sui.io/build/sui-object-display
@@ -124,7 +113,7 @@ module shui_module::boat_ticket {
 
         let global = BoatTicketGlobal {
             id: object::new(ctx),
-            balance_SUI: balance::zero(), 
+            balance_SHUI: balance::zero(), 
             creator: tx_context::sender(ctx),
             num:0
         };
@@ -135,7 +124,7 @@ module shui_module::boat_ticket {
     public fun init_for_test(ctx: &mut TxContext) {
         let global = BoatTicketGlobal {
             id: object::new(ctx),
-            balance_SUI: balance::zero(), 
+            balance_SHUI: balance::zero(), 
             creator: tx_context::sender(ctx),
             num:0
         };
@@ -144,5 +133,12 @@ module shui_module::boat_ticket {
 
     public fun get_boat_num(global:&BoatTicketGlobal):u64 {
         global.num
+    }
+
+    public entry fun withdraw_shui(global: &mut BoatTicketGlobal, amount:u64, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
+        let balance = balance::split(&mut global.balance_SHUI, amount);
+        let shui = coin::from_balance(balance, ctx);
+        transfer::public_transfer(shui, tx_context::sender(ctx));
     }
 }

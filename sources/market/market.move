@@ -23,6 +23,7 @@ module shui_module::market {
     const ERR_NOT_OWNER: u64 = 0x03;
     const ERR_EXCEED_MAX_ON_SALE_NUM: u64 = 0x04;
     const ERR_INVALID_COIN:u64 = 0x05;
+    const DAY_IN_MS: u64 = 86_400_000;
 
     struct MARKET has drop {}
 
@@ -173,7 +174,6 @@ module shui_module::market {
         clock: &Clock, 
         ctx: &mut TxContext
     ) {
-        assert!(owner == tx_context::sender(ctx), ERR_NOT_OWNER);
         assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
         let (i, len) = (0u64, vector::length(his_sales));
@@ -181,7 +181,12 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let time_dif = clock::timestamp_ms(clock) - onsale_time;
+                let days = time_dif / DAY_IN_MS;
+                if (days < 10) {
+                    assert!(owner == tx_context::sender(ctx), ERR_NOT_OWNER);  
+                };
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
@@ -205,7 +210,6 @@ module shui_module::market {
         clock: &Clock, 
         ctx: &mut TxContext
     ) {
-        assert!(owner == tx_context::sender(ctx), ERR_NOT_OWNER);
         assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
         let (i, len) = (0u64, vector::length(his_sales));
@@ -213,7 +217,12 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let time_dif = clock::timestamp_ms(clock) - onsale_time;
+                let days = time_dif / DAY_IN_MS;
+                if (days < 10) {
+                    assert!(owner == tx_context::sender(ctx), ERR_NOT_OWNER);  
+                };
                 if (bag::length(&items) > 0) {
                     let nft = bag::remove<u64, T>(&mut items, 0);
                     transfer::public_transfer(nft, tx_context::sender(ctx));
