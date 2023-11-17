@@ -103,14 +103,6 @@ module shui_module::market {
         }
     }
 
-    public fun get_game_sales_vec(global: &MarketGlobal) : &vector<OnSale> {
-        let table = &global.game_sales;
-        let key = linked_table::front(table);
-        let key_value = *option::borrow(key);
-        let sales = linked_table::borrow(table, key_value);
-        sales
-    }
-
     public entry fun get_game_sales(global: &MarketGlobal, _clock:&Clock) : string::String {
         let byte_semi = ascii::byte(ascii::char(59));
         let table = &global.game_sales;

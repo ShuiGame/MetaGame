@@ -69,6 +69,18 @@ module shui_module::boat_ticket {
         transfer::transfer(ticket, tx_context::sender(ctx));
     }
 
+    #[test_only]
+    public entry fun claim_ticket(global:&mut BoatTicketGlobal, ctx:&mut TxContext) {
+        let ticket = BoatTicket {
+            id:object::new(ctx),
+            name:utf8(b"Shui Meta Ticket"),
+            index:global.num,
+            whitelist_claimed: false
+        };
+        global.num = global.num + 1;
+        transfer::transfer(ticket, tx_context::sender(ctx));
+    }
+
     fun init(otw: BOAT_TICKET, ctx: &mut TxContext) {
         // https://docs.sui.io/build/sui-object-display
 
