@@ -3,7 +3,6 @@ module shui_module::boat_ticket {
     use sui::tx_context::{Self, TxContext, sender};
     use sui::transfer;
     use sui::coin::{Self, Coin, destroy_zero};
-    use sui::sui::SUI;
     use std::string::{String, utf8};
     use sui::package;
     use sui::balance::{Self, Balance};

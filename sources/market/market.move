@@ -18,6 +18,7 @@ module shui_module::market {
     use shui_module::metaIdentity::MetaIdentity;
     use shui_module::tree_of_life::Self;
     use shui_module::shui;
+    use sui::event;
 
     const ERR_SALES_NOT_EXIST: u64 = 0x02;
     const ERR_NOT_OWNER: u64 = 0x03;
@@ -34,6 +35,17 @@ module shui_module::market {
 
         // wallet -> table<objid -> OnSaleInfo>
         game_sales : LinkedTable<address, vector<OnSale>>,
+    }
+
+    struct TransactionRecord has copy, drop {
+        seller:address,
+        buyer:address,
+        name:String,
+        num:u64,
+        price:u64,
+        type:String,
+        coinType:String,
+        time:u64
     }
 
     struct OnSale has key, store {
@@ -109,7 +121,7 @@ module shui_module::market {
         if (linked_table::is_empty(table)) {
             return utf8(b"none")
         };
-        let vec_out:vector<u8> = *string::bytes(&string::utf8(b""));
+        let vec_out:vector<u8> = vector::empty<u8>();
         let key = linked_table::front(table);
         let key_value = *option::borrow(key);
         let sales_vec = linked_table::borrow(table, key_value);
@@ -142,6 +154,8 @@ module shui_module::market {
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.num));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.price));
+            vector::push_back(&mut vec_out, byte_comma);
+            vector::append(&mut vec_out, *string::bytes(&onSale.coinType));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, *string::bytes(&onSale.type));
             vector::push_back(&mut vec_out, byte_comma);
@@ -204,12 +218,12 @@ module shui_module::market {
     ) {
         assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
-        let (i, len) = (0u64, vector::length(his_sales));
+        let (i, len) = (0u64, vector::length(his_sales)); 
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, type:_, onsale_time:onsale_time, bag:items} = sale;
                 let time_dif = clock::timestamp_ms(clock) - onsale_time;
                 let days = time_dif / DAY_IN_MS;
                 if (days < 10) {
@@ -233,13 +247,14 @@ module shui_module::market {
 
     public entry fun purchase_nft_item<T, Nft: key + store> (
         global:&mut MarketGlobal, 
-        meta: &mut MetaIdentity, 
+        _meta: &mut MetaIdentity, 
         owner: address,
         name: String,
         num: u64,
         payment:vector<Coin<T>>,
-        _clock: &Clock, 
+        clock: &Clock, 
         ctx: &mut TxContext) {
+        let now = clock::timestamp_ms(clock);   
         let merged_coins = merge_coins<T>(payment, ctx);
         assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
@@ -249,7 +264,19 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price, coinType:coinType, owner:_, type:_, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, type:type, onsale_time:_, bag:items} = sale;
+                event::emit(
+                    TransactionRecord {
+                        seller:owner,
+                        buyer:tx_context::sender(ctx),
+                        name:name,
+                        num:num,
+                        price:price,
+                        type:type,
+                        coinType:coinType,
+                        time:now
+                    }
+                );
                 let obj_type_name = type_name::get<T>();
                 let obj_contract_str = string::utf8(ascii::into_bytes(into_string(obj_type_name)));
                 if (coinType == utf8(b"SUI")) {
@@ -292,18 +319,31 @@ module shui_module::market {
         name: String,
         num: u64,
         payment:vector<Coin<T>>,
-        _clock: &Clock, 
+        clock: &Clock, 
         ctx: &mut TxContext) {
         let merged_coins = merge_coins<T>(payment, ctx);
         assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
         let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
+        let now = clock::timestamp_ms(clock); 
         let (i, len) = (0u64, vector::length(his_sales));
         let value = value(&merged_coins);
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price, coinType:coinType, owner:_, type:_, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, type:type, onsale_time:_, bag:items} = sale;
+                event::emit(
+                    TransactionRecord {
+                        seller:owner,
+                        buyer:tx_context::sender(ctx),
+                        name:name,
+                        num:num,
+                        price:price,
+                        type:type,
+                        coinType:coinType,
+                        time:now
+                    }
+                );
                 let obj_type_name = type_name::get<T>();
                 let obj_contract_str = string::utf8(ascii::into_bytes(into_string(obj_type_name)));
                 if (coinType == utf8(b"SUI")) {
@@ -385,7 +425,7 @@ module shui_module::market {
 
     public entry fun list_nft_item<Nft:key + store> (
         global: &mut MarketGlobal,
-        meta: &mut MetaIdentity,
+        _meta: &mut MetaIdentity,
         name: String,
         price: u64,
         coinType: String,
@@ -408,6 +448,20 @@ module shui_module::market {
             vector::push_back(&mut new_sales, new_sale);
             linked_table::push_back(sales, owner, new_sales);
         };
+    }
+
+    public fun query_my_onsale(global: &MarketGlobal, addr:address) : String {
+        let table = &global.game_sales;
+        if (linked_table::is_empty(table)) {
+            return utf8(b"none")
+        };
+        if (!linked_table::contains(table, addr)) {
+            return utf8(b"none")
+        };
+        let vec_out:vector<u8> = vector::empty<u8>();
+        let sales_vec = linked_table::borrow(table, addr);
+        vector::append(&mut vec_out, print_onsale_vector(sales_vec));
+        utf8(vec_out)
     }
 
     fun numbers_to_ascii_vector(val: u64): vector<u8> {

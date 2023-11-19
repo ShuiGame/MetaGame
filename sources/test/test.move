@@ -11,21 +11,12 @@ module shui_module::airdrop_test {
         Scenario, next_tx, begin, end, ctx, take_shared, return_shared, take_from_sender,return_to_sender,take_from_address,
         next_epoch
     };
-    use sui::transfer_policy_tests as test;
-    use sui::transfer_policy::{
-        Self as policy,
-        TransferPolicy,
-        TransferPolicyCap,
-        TransferRequest
-    };
 
     use sui::sui::SUI;
     use sui::tx_context;
     use sui::pay;
     use shui_module::items::{Self};
     use shui_module::shui::{Self};
-    use sui::package;
-    use shui_module::royalty_policy;
     use shui_module::metaIdentity::{Self};
     use shui_module::airdrop::{Self};
     use shui_module::founder_team_reserve::{Self};
@@ -35,10 +26,7 @@ module shui_module::airdrop_test {
     use shui_module::market;
     use shui_module::boat_ticket::{Self};
     use shui_module::mission;
-    use sui::object::{Self};
     use sui::kiosk::{Self};
-
-    use sui::hex::{Self};
 
     const DAY_IN_MS: u64 = 86_400_000;
     const HOUR_IN_MS: u64 = 3_600_000;
@@ -328,6 +316,9 @@ module shui_module::airdrop_test {
             market::list_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, utf8(b"boat_ticket"), 12, utf8(b"SUI"), &clock, ticket, ctx(test));
             return_to_sender(test, meta);
             let res = market::get_game_sales(&market_global, &clock);
+            let my_sales = market::query_my_onsale(&market_global, @user);
+            print(&utf8(b"mysales"));
+            print(&my_sales);
             print(&res);
             return_shared(market_global);
             return_shared(itemGlobal);
