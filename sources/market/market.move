@@ -15,7 +15,7 @@ module shui_module::market {
     use sui::tx_context::{Self, TxContext};
     use std::option::{Self};
     use sui::clock::{Self, Clock};
-    use shui_module::metaIdentity::MetaIdentity;
+    use shui_module::metaIdentity::{Self, MetaIdentity};
     use shui_module::tree_of_life::Self;
     use shui_module::shui;
     use sui::event;
@@ -33,8 +33,8 @@ module shui_module::market {
         balance_SHUI: Balance<shui::SHUI>,
         balance_SUI: Balance<SUI>,
 
-        // wallet -> table<objid -> OnSaleInfo>
-        game_sales : LinkedTable<address, vector<OnSale>>,
+        // metaId -> table<objid -> OnSaleInfo>
+        game_sales : LinkedTable<u64, vector<OnSale>>,
     }
 
     struct TransactionRecord has copy, drop {
@@ -55,6 +55,7 @@ module shui_module::market {
         price: u64,
         coinType: String,
         owner: address,
+        metaId: u64,
         type: String,
         onsale_time: u64,
 
@@ -68,7 +69,7 @@ module shui_module::market {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
             balance_SUI: balance::zero(),
-            game_sales: linked_table::new<address, vector<OnSale>>(ctx),
+            game_sales: linked_table::new<u64, vector<OnSale>>(ctx),
         };
         transfer::share_object(global);
     }
@@ -78,12 +79,14 @@ module shui_module::market {
             id: object::new(ctx),
             balance_SHUI: balance::zero(),
             balance_SUI: balance::zero(),
-            game_sales: linked_table::new<address, vector<OnSale>>(ctx),
+
+            // metaId -> sales
+            game_sales: linked_table::new<u64, vector<OnSale>>(ctx),
         };
         transfer::share_object(global);
     }
 
-    fun new_nft_sale<Nft:key + store>(name:String, price:u64, coinType:String, clock:&Clock, type:String, nft:Nft, ctx:&mut TxContext): OnSale {
+    fun new_nft_sale<Nft:key + store>(metaId:u64, name:String, price:u64, coinType:String, clock:&Clock, type:String, nft:Nft, ctx:&mut TxContext): OnSale {
         let now = clock::timestamp_ms(clock);
         let bags = bag::new(ctx);
         bag::add(&mut bags, 0, nft);
@@ -94,13 +97,14 @@ module shui_module::market {
             num: 1,
             coinType: coinType,
             owner:tx_context::sender(ctx),
+            metaId:metaId,
             type: type,
             onsale_time: now,
             bag: bags
         }
     }
 
-    fun new_sale(name:String, num:u64, price:u64, coinType:String, clock:&Clock, type:String, ctx:&mut TxContext): OnSale {
+    fun new_sale(metaId:u64, name:String, num:u64, price:u64, coinType:String, clock:&Clock, type:String, ctx:&mut TxContext): OnSale {
         let now = clock::timestamp_ms(clock);
         OnSale {
             id: object::new(ctx),
@@ -109,6 +113,7 @@ module shui_module::market {
             coinType: coinType,
             num: num,
             owner:tx_context::sender(ctx),
+            metaId: metaId,
             type: type,
             onsale_time: now,
             bag: bag::new(ctx)
@@ -173,21 +178,21 @@ module shui_module::market {
     public entry fun unlist_game_item (
         global:&mut MarketGlobal, 
         meta: &mut MetaIdentity, 
-        owner: address,
         name: String,
         num: u64,
         price: u64,
         clock: &Clock, 
         ctx: &mut TxContext
     ) {
-        assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
-        let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
+        let metaId = metaIdentity::getMetaId(meta);
+        assert!(linked_table::contains(&global.game_sales, metaId), ERR_SALES_NOT_EXIST);
+        let his_sales = linked_table::borrow_mut(&mut global.game_sales, metaId);
         let (i, len) = (0u64, vector::length(his_sales));
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:_, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:metaId, type:_, onsale_time:onsale_time, bag:items} = sale;
                 let time_dif = clock::timestamp_ms(clock) - onsale_time;
                 let days = time_dif / DAY_IN_MS;
                 if (days < 10) {
@@ -196,7 +201,7 @@ module shui_module::market {
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
-                    let vec = linked_table::remove(&mut global.game_sales, owner);
+                    let vec = linked_table::remove(&mut global.game_sales, metaId);
                     vector::destroy_empty(vec);
                 };
                 tree_of_life::fill_items(meta, name, num);
@@ -208,22 +213,22 @@ module shui_module::market {
 
     public entry fun unlist_nft_item<T:key+store> (
         global:&mut MarketGlobal, 
-        meta: &mut MetaIdentity, 
-        owner: address,
+        meta: &mut MetaIdentity,
         name: String,
         num: u64,
         price: u64,
         clock: &Clock, 
         ctx: &mut TxContext
     ) {
-        assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
-        let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
+        let metaId = metaIdentity::getMetaId(meta);
+        assert!(linked_table::contains(&global.game_sales, metaId), ERR_SALES_NOT_EXIST);
+        let his_sales = linked_table::borrow_mut(&mut global.game_sales, metaId);
         let (i, len) = (0u64, vector::length(his_sales)); 
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:_, type:_, onsale_time:onsale_time, bag:items} = sale;
                 let time_dif = clock::timestamp_ms(clock) - onsale_time;
                 let days = time_dif / DAY_IN_MS;
                 if (days < 10) {
@@ -236,7 +241,7 @@ module shui_module::market {
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
-                    let vec = linked_table::remove(&mut global.game_sales, owner);
+                    let vec = linked_table::remove(&mut global.game_sales, metaId);
                     vector::destroy_empty(vec);
                 };
                 break
@@ -247,8 +252,8 @@ module shui_module::market {
 
     public entry fun purchase_nft_item<T, Nft: key + store> (
         global:&mut MarketGlobal, 
-        _meta: &mut MetaIdentity, 
-        owner: address,
+        meta: &mut MetaIdentity,
+        ownerMetaId: u64,
         name: String,
         num: u64,
         payment:vector<Coin<T>>,
@@ -256,15 +261,15 @@ module shui_module::market {
         ctx: &mut TxContext) {
         let now = clock::timestamp_ms(clock);   
         let merged_coins = merge_coins<T>(payment, ctx);
-        assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
-        let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
+        assert!(linked_table::contains(&global.game_sales, ownerMetaId), ERR_SALES_NOT_EXIST);
+        let his_sales = linked_table::borrow_mut(&mut global.game_sales, ownerMetaId);
         let (i, len) = (0u64, vector::length(his_sales));
         let value = value(&merged_coins);
         while (i < len) {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, type:type, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items} = sale;
                 event::emit(
                     TransactionRecord {
                         seller:owner,
@@ -295,7 +300,7 @@ module shui_module::market {
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
-                    let vec = linked_table::remove(&mut global.game_sales, owner);
+                    let vec = linked_table::remove(&mut global.game_sales, ownerMetaId);
                     vector::destroy_empty(vec);
                 };
                 let payment = coin::split<T>(&mut merged_coins, price, ctx);
@@ -315,15 +320,15 @@ module shui_module::market {
     public entry fun purchase_game_item<T> (
         global:&mut MarketGlobal, 
         meta: &mut MetaIdentity, 
-        owner: address,
+        ownerMetaId: u64,
         name: String,
         num: u64,
         payment:vector<Coin<T>>,
         clock: &Clock, 
         ctx: &mut TxContext) {
         let merged_coins = merge_coins<T>(payment, ctx);
-        assert!(linked_table::contains(&global.game_sales, owner), ERR_SALES_NOT_EXIST);
-        let his_sales = linked_table::borrow_mut(&mut global.game_sales, owner);
+        assert!(linked_table::contains(&global.game_sales, ownerMetaId), ERR_SALES_NOT_EXIST);
+        let his_sales = linked_table::borrow_mut(&mut global.game_sales, ownerMetaId);
         let now = clock::timestamp_ms(clock); 
         let (i, len) = (0u64, vector::length(his_sales));
         let value = value(&merged_coins);
@@ -331,7 +336,7 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, type:type, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items} = sale;
                 event::emit(
                     TransactionRecord {
                         seller:owner,
@@ -358,7 +363,7 @@ module shui_module::market {
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
-                    let vec = linked_table::remove(&mut global.game_sales, owner);
+                    let vec = linked_table::remove(&mut global.game_sales, metaId);
                     vector::destroy_empty(vec);
                 };
                 let payment = coin::split<T>(&mut merged_coins, price, ctx);
@@ -407,25 +412,25 @@ module shui_module::market {
     ) {
         tree_of_life::extract_drop_items(meta, name, num);
         let sales = &mut global.game_sales;
-        let owner = tx_context::sender(ctx);
+        let metaId = metaIdentity::getMetaId(meta);
         let type = utf8(b"gamefi");
         assert!((coinType == utf8(b"SUI") || coinType == utf8(b"SHUI")), ERR_INVALID_COIN);
-        if (linked_table::contains(sales, owner)) {
-            let my_sales = linked_table::borrow_mut(sales, owner);
+        if (linked_table::contains(sales, metaId)) {
+            let my_sales = linked_table::borrow_mut(sales, metaId);
             assert!(vector::length(my_sales) <= 10, ERR_EXCEED_MAX_ON_SALE_NUM);
-            let new_sale = new_sale(name, num, price, coinType, clock, type, ctx);
+            let new_sale = new_sale(metaId, name, num, price, coinType, clock, type, ctx);
             vector::push_back(my_sales, new_sale);
         } else {
             let new_sales = vector::empty<OnSale>();
-            let new_sale = new_sale(name, num, price, coinType, clock, type, ctx);
+            let new_sale = new_sale(metaId, name, num, price, coinType, clock, type, ctx);
             vector::push_back(&mut new_sales, new_sale);
-            linked_table::push_back(sales, owner, new_sales);
+            linked_table::push_back(sales, metaId, new_sales);
         };
     }
 
     public entry fun list_nft_item<Nft:key + store> (
         global: &mut MarketGlobal,
-        _meta: &mut MetaIdentity,
+        meta: &mut MetaIdentity,
         name: String,
         price: u64,
         coinType: String,
@@ -434,32 +439,32 @@ module shui_module::market {
         ctx: &mut TxContext
     ) {
         let sales = &mut global.game_sales;
-        let owner = tx_context::sender(ctx);
+        let metaId = metaIdentity::getMetaId(meta);
         let type = utf8(b"nft");
         assert!((coinType == utf8(b"SUI") || coinType == utf8(b"SHUI")), ERR_INVALID_COIN);
-        if (linked_table::contains(sales, owner)) {
-            let my_sales = linked_table::borrow_mut(sales, owner);
+        if (linked_table::contains(sales, metaId)) {
+            let my_sales = linked_table::borrow_mut(sales, metaId);
             assert!(vector::length(my_sales) <= 10, ERR_EXCEED_MAX_ON_SALE_NUM);
-            let new_sale = new_nft_sale<Nft>(name, price, coinType, clock, type, nft, ctx);
+            let new_sale = new_nft_sale<Nft>(metaIdentity::getMetaId(meta), name, price, coinType, clock, type, nft, ctx);
             vector::push_back(my_sales, new_sale);
         } else {
             let new_sales = vector::empty<OnSale>();
-            let new_sale = new_nft_sale<Nft>(name, price, coinType, clock, type, nft, ctx);
+            let new_sale = new_nft_sale<Nft>(metaIdentity::getMetaId(meta), name, price, coinType, clock, type, nft, ctx);
             vector::push_back(&mut new_sales, new_sale);
-            linked_table::push_back(sales, owner, new_sales);
+            linked_table::push_back(sales, metaId, new_sales);
         };
     }
 
-    public fun query_my_onsale(global: &MarketGlobal, addr:address) : String {
+    public fun query_my_onsale(global: &MarketGlobal, metaId:u64) : String {
         let table = &global.game_sales;
         if (linked_table::is_empty(table)) {
             return utf8(b"none")
         };
-        if (!linked_table::contains(table, addr)) {
+        if (!linked_table::contains(table, metaId)) {
             return utf8(b"none")
         };
         let vec_out:vector<u8> = vector::empty<u8>();
-        let sales_vec = linked_table::borrow(table, addr);
+        let sales_vec = linked_table::borrow(table, metaId);
         vector::append(&mut vec_out, print_onsale_vector(sales_vec));
         utf8(vec_out)
     }

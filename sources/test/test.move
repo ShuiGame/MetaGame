@@ -316,7 +316,7 @@ module shui_module::airdrop_test {
             market::list_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, utf8(b"boat_ticket"), 12, utf8(b"SUI"), &clock, ticket, ctx(test));
             return_to_sender(test, meta);
             let res = market::get_game_sales(&market_global, &clock);
-            let my_sales = market::query_my_onsale(&market_global, @user);
+            let my_sales = market::query_my_onsale(&market_global, 20001);
             print(&utf8(b"mysales"));
             print(&my_sales);
             print(&res);
@@ -331,8 +331,9 @@ module shui_module::airdrop_test {
             let market_global =  take_shared<market::MarketGlobal>(test);
             let itemGlobal = take_shared<items::ItemGlobal>(test);
             let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            market::unlist_game_item(&mut market_global, &mut meta, @account, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
-            market::unlist_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, @account, utf8(b"boat_ticket"), 1, 1132, &clock, ctx(test));
+            print(&metaIdentity::getMetaId(&meta));
+            market::unlist_game_item(&mut market_global, &mut meta, utf8(b"water_element_memory"), 1,  1, &clock, ctx(test));
+            market::unlist_nft_item<boat_ticket::BoatTicket>(&mut market_global, &mut meta, utf8(b"boat_ticket"), 1, 1132, &clock, ctx(test));
             return_to_sender(test, meta);
             return_shared(market_global);
             return_shared(itemGlobal);
@@ -358,8 +359,8 @@ module shui_module::airdrop_test {
             let coins2 = vector::empty<Coin<SUI>>();
             vector::push_back(&mut coins, coin);
             vector::push_back(&mut coins2, coin2);
-            market::purchase_game_item(&mut market_global, &mut meta, @user, utf8(b"fruit"), 1, coins, &clock, ctx(test));
-            market::purchase_nft_item<SUI, boat_ticket::BoatTicket>(&mut market_global, &mut meta, @user, utf8(b"boat_ticket"), 1, coins2, &clock, ctx(test));
+            market::purchase_game_item(&mut market_global, &mut meta, 20001, utf8(b"fruit"), 1, coins, &clock, ctx(test));
+            market::purchase_nft_item<SUI, boat_ticket::BoatTicket>(&mut market_global, &mut meta, 20001, utf8(b"boat_ticket"), 1, coins2, &clock, ctx(test));
             return_to_sender(test, meta);
             let res = market::get_game_sales(&market_global, &clock);
             print(&res);

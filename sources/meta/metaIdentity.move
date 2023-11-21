@@ -27,7 +27,8 @@ module shui_module::metaIdentity {
         phone:string::String,
         email:string::String,
         bind_status: bool,
-        items:items::Items
+        items:items::Items,
+        wallet:address
     }
 
 
@@ -120,7 +121,8 @@ module shui_module::metaIdentity {
             phone:phone,
             email: email,
             bind_status: true,
-            items:items::new(ctx)
+            items:items::new(ctx),
+            wallet:sender
         };
         assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
         table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
@@ -195,7 +197,7 @@ module shui_module::metaIdentity {
     }
 
     public entry fun deleteMeta(meta: MetaIdentity) {
-        let MetaIdentity {id, metaId:_, name:_, phone:_, email:_, bind_status:_, items} = meta;
+        let MetaIdentity {id, metaId:_, name:_, phone:_, email:_, bind_status:_, items, wallet:_} = meta;
 
         // todo:check bags
         items::destroy_empty(items);
@@ -204,6 +206,10 @@ module shui_module::metaIdentity {
 
     public fun getMetaId(meta: &MetaIdentity) :u64 {
         meta.metaId
+    }
+
+    public fun getAddr(meta: &MetaIdentity) : address {
+        meta.wallet
     }
 
     public fun is_active(meta: &MetaIdentity) :bool {
