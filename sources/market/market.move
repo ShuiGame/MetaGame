@@ -168,6 +168,8 @@ module shui_module::market {
             vector::append(&mut vec_out, *string::bytes(&string::utf8(b"0x")));
             vector::append(&mut vec_out, *string::bytes(&owner_addr_str));
             vector::push_back(&mut vec_out, byte_comma);
+            vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.metaId));
+            vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.onsale_time));
             vector::push_back(&mut vec_out, byte_semi);
             i = i + 1
