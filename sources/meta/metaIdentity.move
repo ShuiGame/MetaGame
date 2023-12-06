@@ -1,7 +1,7 @@
 module shui_module::metaIdentity {
     use std::string;
     use sui::object::{Self, UID};
-
+    use sui::linked_table::{Self, LinkedTable};
     use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
     use sui::table::{Self};
@@ -30,7 +30,6 @@ module shui_module::metaIdentity {
         items:items::Items,
         wallet:address
     }
-
 
     // ====== Events ======
     // For when someone has purchased a donut.
@@ -68,7 +67,10 @@ module shui_module::metaIdentity {
         // wallet_addr -> phone
         wallet_phone_map:table::Table<address, string::String>,
 
-        register_owner:address
+        register_owner:address,
+
+        // metaId -> inviteNumber
+        inviteMap::LinkedTable<u64, u64>
     }
 
     #[test_only]
@@ -85,7 +87,8 @@ module shui_module::metaIdentity {
             wallet_meta_map:table::new<address, address>(ctx),
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
-            register_owner:@register_manager
+            register_owner:@register_manager,
+            inviteMap::linked_table::new<u64, u64>(ctx)
         };
         transfer::share_object(global);
     }
@@ -103,9 +106,53 @@ module shui_module::metaIdentity {
             wallet_meta_map:table::new<address, address>(ctx),
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
-            register_owner:@register_manager
+            register_owner:@register_manager,
+            inviteMap::linked_table::new<u64, u64>(ctx)
         };
         transfer::share_object(global);
+    }
+
+    public entry fun mintInviteMeta(global: &mut MetaInfoGlobal, inviteMetaId:u64, name:string::String, phone:string::String,
+        email:string::String, user_addr:address, ctx:&mut TxContext) {
+        let sender = tx_context::sender(ctx);
+        // assert!(global.register_owner == sender, ERR_NO_PERMISSION);
+        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ALREADY_BIND);
+        let uid = object::new(ctx);
+        let meta_addr = object::uid_to_address(&uid);
+        let meta = MetaIdentity {
+            id: uid,
+            metaId: generateUid(global, user_addr),
+            name:name,
+            phone:phone,
+            email: email,
+            bind_status: true,
+            items:items::new(ctx),
+            wallet:sender
+        };
+        if (link_table::contains(&global.inviteMap, inviteMetaId)) {
+            let num = link_table::borrow(&global.inviteMap, inviteMetaId);
+            // todo:check 是否正确
+            linked_table::push_back(&mut global.inviteMap, inviteMetaId, num + 1);
+        } else {
+            linked_table::push_back(&mut global.inviteMap, inviteMetaId, 1);
+        };
+        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
+        table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
+
+        assert!(!table::contains(&global.phone_meta_map, phone), ERR_PHONE_HAS_BEEN_BINDED);
+        table::add(&mut global.phone_meta_map, phone, meta_addr);
+
+        assert!(!table::contains(&global.wallet_phone_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
+        table::add(&mut global.wallet_phone_map, user_addr, phone);
+        transfer::transfer(meta, user_addr);
+
+        event::emit(
+            RegisterEvent {
+                name: name,
+                email: email
+            }
+        );
+        global.total_players = global.total_players + 1;
     }
 
     public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
@@ -283,5 +330,13 @@ module shui_module::metaIdentity {
 
     public fun get_total_players(global:&MetaInfoGlobal): u64 {
         global.total_players
+    }
+
+    public entry fun query_invited_num(global:&MetaInfoGlobal, meta: &MetaIdentity) :u64 {
+        if (link_table::contains(&global.inviteMap, &meta.metaId)) {
+            *link_table::borrow(&global.inviteMap, meta.metaId); 
+        } else {
+            0
+        };
     }
 }
