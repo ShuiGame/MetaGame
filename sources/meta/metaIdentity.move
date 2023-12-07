@@ -70,7 +70,7 @@ module shui_module::metaIdentity {
         register_owner:address,
 
         // metaId -> inviteNumber
-        inviteMap::LinkedTable<u64, u64>
+        inviteMap:LinkedTable<u64, u64>
     }
 
     #[test_only]
@@ -88,7 +88,7 @@ module shui_module::metaIdentity {
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
             register_owner:@register_manager,
-            inviteMap::linked_table::new<u64, u64>(ctx)
+            inviteMap:linked_table::new<u64, u64>(ctx)
         };
         transfer::share_object(global);
     }
@@ -107,7 +107,7 @@ module shui_module::metaIdentity {
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
             register_owner:@register_manager,
-            inviteMap::linked_table::new<u64, u64>(ctx)
+            inviteMap:linked_table::new<u64, u64>(ctx)
         };
         transfer::share_object(global);
     }
@@ -129,10 +129,9 @@ module shui_module::metaIdentity {
             items:items::new(ctx),
             wallet:sender
         };
-        if (link_table::contains(&global.inviteMap, inviteMetaId)) {
-            let num = link_table::borrow(&global.inviteMap, inviteMetaId);
-            // todo:check 是否正确
-            linked_table::push_back(&mut global.inviteMap, inviteMetaId, num + 1);
+        if (linked_table::contains(&global.inviteMap, inviteMetaId)) {
+            let num = linked_table::remove(&mut global.inviteMap, inviteMetaId);
+            linked_table::push_back(&mut global.inviteMap, inviteMetaId, (num + 1));
         } else {
             linked_table::push_back(&mut global.inviteMap, inviteMetaId, 1);
         };
@@ -237,7 +236,6 @@ module shui_module::metaIdentity {
     }
 
     public fun transferMeta(global: &mut MetaInfoGlobal, meta: MetaIdentity, receiver:address, ctx:&mut TxContext) {
-        // todo: convert to kiosk architecture
         _ = table::remove(&mut global.wallet_meta_map, tx_context::sender(ctx));
         unbindMeta(global, &mut meta, ctx);
         transfer::transfer(meta, receiver);
@@ -332,11 +330,11 @@ module shui_module::metaIdentity {
         global.total_players
     }
 
-    public entry fun query_invited_num(global:&MetaInfoGlobal, meta: &MetaIdentity) :u64 {
-        if (link_table::contains(&global.inviteMap, &meta.metaId)) {
-            *link_table::borrow(&global.inviteMap, meta.metaId); 
+    public entry fun query_invited_num(global:&MetaInfoGlobal, metaId: u64) :u64 {
+        if (linked_table::contains(&global.inviteMap, metaId)) {
+            *linked_table::borrow(&global.inviteMap, metaId)
         } else {
             0
-        };
+        }
     }
 }

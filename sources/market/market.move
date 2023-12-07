@@ -296,12 +296,14 @@ module shui_module::market {
                     assert!(obj_contract_str == shui_contract_str, ERR_INVALID_COIN);
                 };
                 if (bag::length(&items) > 0) {
+                    // 疑点2！！！
                     let nft = bag::remove<u64, Nft>(&mut items, 0);
                     transfer::public_transfer(nft, tx_context::sender(ctx));
                 };
                 bag::destroy_empty(items);
                 object::delete(id);
                 if (vector::length(his_sales) == 0) {
+                    // 疑点1！！！
                     let vec = linked_table::remove(&mut global.game_sales, ownerMetaId);
                     vector::destroy_empty(vec);
                 };

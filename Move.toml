@@ -8,6 +8,7 @@ Sui = { git = "https://github.com/MystenLabs/sui.git",  rev = "framework/testnet
 shui_module = "0x0"
 account = "0xbe379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c18"
 user = "0xce379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c19"
+user2 = "0xce379359ac6e9d0fc0b867f147f248f1c2d9fc019a9a708adfcbe15fc3130c11"
 std= "0x1"
 sui = "0x2"
 
