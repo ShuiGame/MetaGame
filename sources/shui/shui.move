@@ -25,13 +25,15 @@ module shui_module::shui {
     const SHUI_ICON_URL:vector<u8> = b"https://nftstorage.link/ipfs/bafybeieqqos2upvmmxzmauv6cf53ddegpjc5zkrvbpriz7iajamcxikv4y";
     const ERR_NO_PERMISSION:u64 = 0x004;
     const TOTAL_SUPPLY: u64 = 2_100_000_000;
-    const DAO_RESERVE:u64 = 50_000_000;
     const GAME_RESERVE:u64 = 1_000_000_000;
+    const AIRDROP_AMOUNT:u64 = 450_000_000;
+    const WHITE_LIST_RESERVE:u64 = 320_000_000;
+    const MISSION_RESERVE:u64 = 159_000_000;
+    const SWAP_AMOUNT:u64 = 100_000_000;
+    const DAO_RESERVE:u64 = 50_000_000;
     const FOUNDER_TEAM_RESERVE:u64 = 21_000_000;
-    const MISSION_RESERVE:u64 = 239_000_000;
+
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
-    const AIRDROP_AMOUNT:u64 = 390_000_000;
-    const SWAP_AMOUNT:u64 = 300_000_000;
 
     struct SHUI has drop {}
 

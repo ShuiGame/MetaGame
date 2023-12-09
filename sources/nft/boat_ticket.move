@@ -10,7 +10,7 @@ module shui_module::boat_ticket {
     use std::vector;
     use sui::pay;
     use shui_module::shui;
-    use shui_module::royalty_policy::{Self};
+    friend shui_module::airdrop;
 
     const DEFAULT_LINK: vector<u8> = b"https://shui.one";
     const DEFAULT_IMAGE_URL: vector<u8> = b"https://bafybeibzoi4kzr4gg75zhso5jespxnwespyfyakemrwibqorjczkn23vpi.ipfs.nftstorage.link/NFT-CARD1.png";
@@ -46,11 +46,12 @@ module shui_module::boat_ticket {
 
     public entry fun buy_ticket(global:&mut BoatTicketGlobal, coins:vector<Coin<shui::SHUI>>, ctx:&mut TxContext) {
         let recepient = tx_context::sender(ctx);
+        let price = 50;
         let merged_coin = vector::pop_back(&mut coins);
         pay::join_vec(&mut merged_coin, coins);
-        assert!(coin::value(&merged_coin) >= 100 * AMOUNT_DECIMAL, ERR_SWAP_MIN_ONE_SUI);
+        assert!(coin::value(&merged_coin) >= price * AMOUNT_DECIMAL, ERR_SWAP_MIN_ONE_SUI);
         let balance = coin::into_balance<shui::SHUI>(
-            coin::split<shui::SHUI>(&mut merged_coin, 100 * AMOUNT_DECIMAL, ctx)
+            coin::split<shui::SHUI>(&mut merged_coin, price * AMOUNT_DECIMAL, ctx)
         );
         balance::join(&mut global.balance_SHUI, balance);
         if (coin::value(&merged_coin) > 0) {
@@ -113,9 +114,6 @@ module shui_module::boat_ticket {
         let display = display::new_with_fields<BoatTicket>(
             &publisher, keys, values, ctx
         );
-        
-        // set 0% royalty
-        royalty_policy::new_royalty_policy<BoatTicket>(&publisher, 0, ctx);
 
         // Commit first version of `Display` to apply changes.
         display::update_version(&mut display);
@@ -151,5 +149,9 @@ module shui_module::boat_ticket {
         let balance = balance::split(&mut global.balance_SHUI, amount);
         let shui = coin::from_balance(balance, ctx);
         transfer::public_transfer(shui, tx_context::sender(ctx));
+    }
+
+    public(friend) fun record_white_list_clamed(ticket:&mut BoatTicket) {
+        ticket.whitelist_claimed = true;
     }
 }

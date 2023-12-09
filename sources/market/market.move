@@ -60,7 +60,8 @@ module shui_module::market {
         onsale_time: u64,
 
         // at most store one obejct
-        bag: bag::Bag
+        bag: bag::Bag,
+        nftType: String
     }
 
     #[test_only]
@@ -89,6 +90,7 @@ module shui_module::market {
     fun new_nft_sale<Nft:key + store>(metaId:u64, name:String, price:u64, coinType:String, clock:&Clock, type:String, nft:Nft, ctx:&mut TxContext): OnSale {
         let now = clock::timestamp_ms(clock);
         let bags = bag::new(ctx);
+        let nftType = string::from_ascii(*type_name::borrow_string(&type_name::get<Nft>()));
         bag::add(&mut bags, 0, nft);
         OnSale {
             id: object::new(ctx),
@@ -100,7 +102,8 @@ module shui_module::market {
             metaId:metaId,
             type: type,
             onsale_time: now,
-            bag: bags
+            bag: bags,
+            nftType: nftType
         }
     }
 
@@ -116,7 +119,8 @@ module shui_module::market {
             metaId: metaId,
             type: type,
             onsale_time: now,
-            bag: bag::new(ctx)
+            bag: bag::new(ctx),
+            nftType: utf8(b"")
         }
     }
 
@@ -156,6 +160,8 @@ module shui_module::market {
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, *string::bytes(&onSale.name));
             vector::push_back(&mut vec_out, byte_comma);
+            vector::append(&mut vec_out, *string::bytes(&onSale.nftType));
+            vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.num));
             vector::push_back(&mut vec_out, byte_comma);
             vector::append(&mut vec_out, numbers_to_ascii_vector(onSale.price));
@@ -194,7 +200,7 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:metaId, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:metaId, type:_, onsale_time:onsale_time, bag:items, nftType:_} = sale;
                 let time_dif = clock::timestamp_ms(clock) - onsale_time;
                 let days = time_dif / DAY_IN_MS;
                 if (days < 10) {
@@ -230,7 +236,7 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price == price) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:_, type:_, onsale_time:onsale_time, bag:items} = sale;
+                let OnSale {id, name:_, num:_, price:_, coinType:_, owner:owner, metaId:_, type:_, onsale_time:onsale_time, bag:items, nftType:_} = sale;
                 let time_dif = clock::timestamp_ms(clock) - onsale_time;
                 let days = time_dif / DAY_IN_MS;
                 if (days < 10) {
@@ -271,7 +277,7 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items, nftType:_} = sale;
                 event::emit(
                     TransactionRecord {
                         seller:owner,
@@ -338,7 +344,7 @@ module shui_module::market {
             let onSale:&OnSale = vector::borrow(his_sales, i);
             if (onSale.name == name && onSale.num == num && onSale.price <= value) {
                 let sale = vector::remove(his_sales, i);
-                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items} = sale;
+                let OnSale {id, name:name, num:num, price, coinType:coinType, owner:owner, metaId:metaId, type:type, onsale_time:_, bag:items, nftType:_} = sale;
                 event::emit(
                     TransactionRecord {
                         seller:owner,

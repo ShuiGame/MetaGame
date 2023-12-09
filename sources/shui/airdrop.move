@@ -10,6 +10,7 @@ module shui_module::airdrop {
     use sui::coin::{Self};
     use sui::balance::{Self, Balance};
     use sui::table::{Self};
+    use shui_module::boat_ticket::{Self, BoatTicket};
 
     const ERR_INVALID_PHASE:u64 = 0x001;
     const ERR_NO_PERMISSION:u64 = 0x002;
@@ -108,6 +109,16 @@ module shui_module::airdrop {
             let _ = table::remove(table, recepient);
         };
         table::add(table, recepient, time);
+    }
+
+    public entry fun claim_boat_whitelist_airdrop(info:&mut AirdropGlobal, ticket:&mut BoatTicket, meta: &metaIdentity::MetaIdentity, ctx: &mut TxContext) {
+        assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
+        let user = tx_context::sender(ctx);
+        let amount = 10_000 * AMOUNT_DECIMAL;
+        let whitelist_airdrop = balance::split(&mut info.balance_SHUI, amount);
+        let shui = coin::from_balance(whitelist_airdrop, ctx);
+        transfer::public_transfer(shui, tx_context::sender(ctx));
+        boat_ticket::record_white_list_clamed(ticket);
     }
 
     public entry fun claim_airdrop(mission_global:&mut mission::MissionGlobal, info:&mut AirdropGlobal, meta: &metaIdentity::MetaIdentity, clock:&Clock, ctx: &mut TxContext) {

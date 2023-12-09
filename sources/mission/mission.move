@@ -14,6 +14,7 @@ module shui_module::mission {
     use std::debug::print;
     use shui_module::shui;
     use sui::linked_table::{Self, LinkedTable};
+    use sui::coin::{Self};
     use std::option::{Self};
     friend shui_module::tree_of_life;
     friend shui_module::airdrop;
@@ -24,14 +25,22 @@ module shui_module::mission {
     const ERR_MISSION_NOT_EXIST:u64 = 0x04;
     const ERR_IS_ALREADY_CLAIMED:u64 = 0x05;
     const ERR_PROGRESS_NOT_REACH:u64 = 0x06;
+    const ERR_HAS_EXCEED_INVITE_POOL_LIMIT:u64 = 0x07;
     const DAY_IN_MS: u64 = 86_400_000;
+    const AMOUNT_DECIMAL:u64 = 1_000_000_000;
+    const INVITE_REWARD_LIMIT:u64 = 59_000_000;
 
     struct MissionGlobal has key {
         id: UID,
         balance_SHUI: Balance<shui::SHUI>,
 
+        invite_pool_limit : u64,
+
         // missionName -> MissionRecord
         mission_records: LinkedTable<String, MissionInfo>,
+
+        // metaId -> invite mission num -> has claimed
+        invite_claim_records: Table<u64, Table<u64, bool>>,
         creator: address
     }
 
@@ -62,9 +71,11 @@ module shui_module::mission {
     fun init(ctx: &mut TxContext) {
         let global = MissionGlobal {
             id: object::new(ctx),
+            invite_pool_limit: INVITE_REWARD_LIMIT,
             mission_records: linked_table::new<String, MissionInfo>(ctx),
             balance_SHUI: balance::zero(),
             creator: @account,
+            invite_claim_records: table::new<u64, Table<u64, bool>>(ctx)
         };
         transfer::share_object(global);
     }
@@ -73,9 +84,11 @@ module shui_module::mission {
     public fun init_for_test(ctx: &mut TxContext) {
         let global = MissionGlobal {
             id: object::new(ctx),
+            invite_pool_limit: INVITE_REWARD_LIMIT,
             balance_SHUI: balance::zero(),
             mission_records: linked_table::new<String, MissionInfo>(ctx),
             creator: @account,
+            invite_claim_records: table::new<u64, Table<u64, bool>>(ctx)
         };
         transfer::share_object(global);
     }
@@ -182,6 +195,107 @@ module shui_module::mission {
         vec
     }
 
+    fun has_clamied_invite(global:&MissionGlobal, metaId:u64, missionNum:u64): bool {
+        if (!table::contains(&global.invite_claim_records, metaId)) {
+            return false;
+        };
+        let numTable = table::borrow(&global.invite_claim_records, metaId);
+        if (!table::contains(numTable, missionNum)) {
+            return false;
+        };
+        let value = table::borrow(numTable, missionNum);
+        return *value
+    }
+
+    fun record_invite_clamied(global:&mut MissionGlobal, metaId:u64, missionNum:u64, ctx:&mut TxContext) {
+        if (!table::contains(&global.invite_claim_records, metaId)) {
+            let table_records = table::new<u64, bool>(ctx);
+            table::add(&mut table_records, missionNum, true);
+            table::add(&mut global.invite_claim_records, metaId, table_records);
+        } else {
+            let table_records = table::borrow_mut(&mut global.invite_claim_records, metaId);
+            if (!table::contains(table_records, missionNum)) {
+                table::add(table_records, missionNum, true);
+            };
+        };
+    }
+
+    public entry fun claim_invite_mission(global: &mut MissionGlobal, metaGlobal: &metaIdentity::MetaInfoGlobal, inviteNum:u64, 
+        meta:&mut MetaIdentity, ctx:&mut TxContext) {
+        let num = metaIdentity::query_invited_num(metaGlobal, metaIdentity::getMetaId(meta));
+        if (inviteNum == 2 && num >= 2) {
+            let reward = 100 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 100;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 5 && num >= 5) {
+            let reward = 500 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 500;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 10 && num >= 10) {
+            let reward = 1000 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 1000;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 20 && num >= 20) {
+            let reward = 3000 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 3000;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 50 && num >= 50) {
+            let reward = 10000 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 10000;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 75 && num >= 75) {
+            let reward = 25000 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 25000;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        if (inviteNum == 99 && num >= 99) {
+            let reward = 50000 * AMOUNT_DECIMAL;
+            global.invite_pool_limit = global.invite_pool_limit + 50000;
+            if (!has_clamied_invite(global, metaIdentity::getMetaId(meta), inviteNum)) {
+                let shui_balance = balance::split(&mut global.balance_SHUI, reward);
+                let shui = coin::from_balance(shui_balance, ctx);
+                transfer::public_transfer(shui, tx_context::sender(ctx));
+                record_invite_clamied(global, metaIdentity::getMetaId(meta), inviteNum, ctx);
+            };
+        };
+        assert!(global.invite_pool_limit <= INVITE_REWARD_LIMIT, ERR_HAS_EXCEED_INVITE_POOL_LIMIT);
+    }
+
     public entry fun claim_mission(global: &mut MissionGlobal, mission:String, meta:&mut MetaIdentity) {
         let mission_records = &mut global.mission_records;
         assert!(linked_table::contains(mission_records, mission), ERR_MISSION_NOT_EXIST);
@@ -222,7 +336,106 @@ module shui_module::mission {
 
     public fun init_missions(global: &mut MissionGlobal, clock:&clock::Clock, ctx:&mut TxContext) {
         // init all missions here, update with latest version
-        // mission1: finish 3 water down
+        // mission1: invite 2 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission1_name = utf8(b"invite players2");
+        // let mission1 = MissionInfo {
+        //     name:mission1_name,
+        //     desc:utf8(b"invite 2 players"),
+        //     goal_process:2,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:100")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission1_name, mission1);
+
+        // // mission2: invite 5 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission2_name = utf8(b"invite players5");
+        // let mission2 = MissionInfo {
+        //     name:mission2_name,
+        //     desc:utf8(b"invite 5 players"),
+        //     goal_process:5,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:500")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission2_name, mission2);
+
+        // // mission3: invite 10 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission3_name = utf8(b"invite players10");
+        // let mission3 = MissionInfo {
+        //     name:mission3_name,
+        //     desc:utf8(b"invite 10 players"),
+        //     goal_process:10,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:1000")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission3_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission3_name, mission3);
+
+        // // mission4: invite 20 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission4_name = utf8(b"invite players20");
+        // let mission4 = MissionInfo {
+        //     name:mission4_name,
+        //     desc:utf8(b"invite 20 players"),
+        //     goal_process:20,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:3000")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission4_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission4_name, mission4);
+
+        // // mission5: invite 50 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission5_name = utf8(b"invite players50");
+        // let mission5 = MissionInfo {
+        //     name:mission5_name,
+        //     desc:utf8(b"invite 50 players"),
+        //     goal_process:50,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:10000")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission5_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission5_name, mission5);
+        
+        
+        // // mission6: invite 75 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission6_name = utf8(b"invite players75");
+        // let mission6 = MissionInfo {
+        //     name:mission6_name,
+        //     desc:utf8(b"invite 75 players"),
+        //     goal_process:75,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:25000")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission6_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission6_name, mission6);
+
+        // // mission7: invite 99 players
+        // let now = clock::timestamp_ms(clock);
+        // let mission7_name = utf8(b"invite players99");
+        // let mission7 = MissionInfo {
+        //     name:mission7_name,
+        //     desc:utf8(b"invite 99 players"),
+        //     goal_process:99,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 365 * DAY_IN_MS,
+        //     reward:utf8(b"SUI:25000")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission7_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission7_name, mission7);
+
+        // mission2: finish 3 water down
         let now = clock::timestamp_ms(clock);
         let mission1_name = utf8(b"water down");
         let mission1 = MissionInfo {
@@ -236,31 +449,31 @@ module shui_module::mission {
         assert!(!linked_table::contains(&global.mission_records, mission1_name), ERR_MISSION_EXIST);
         linked_table::push_back(&mut global.mission_records, mission1_name, mission1);
 
-        // mission1: swap any water element
-        let mission2_name = utf8(b"swap water element");
-        let mission2 = MissionInfo {
-            name:mission2_name,
-            desc:utf8(b"swap fragments into any water element"),
-            goal_process:1,
-            missions: table::new<u64, UserRecord>(ctx),
-            deadline:now + 4 * DAY_IN_MS,
-            reward:utf8(b"anything")
-        };
-        assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
-        linked_table::push_back(&mut global.mission_records, mission2_name, mission2);
+        // mission3: swap any water element
+        // let mission2_name = utf8(b"swap water element");
+        // let mission2 = MissionInfo {
+        //     name:mission2_name,
+        //     desc:utf8(b"swap fragments into any water element"),
+        //     goal_process:1,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 4 * DAY_IN_MS,
+        //     reward:utf8(b"anything")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission2_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission2_name, mission2);
 
-        // mission2: claim airdrop
-        let mission3_name = utf8(b"claim airdrop");
-        let mission3 = MissionInfo {
-            name:mission2_name,
-            desc:utf8(b"claim airdrop once"),
-            goal_process:1,
-            missions: table::new<u64, UserRecord>(ctx),
-            deadline:now + 5 * DAY_IN_MS,
-            reward:utf8(b"anything")
-        };
-        assert!(!linked_table::contains(&global.mission_records, mission3_name), ERR_MISSION_EXIST);
-        linked_table::push_back(&mut global.mission_records, mission3_name, mission3);
+        // mission4: claim airdrop
+        // let mission3_name = utf8(b"claim airdrop");
+        // let mission3 = MissionInfo {
+        //     name:mission2_name,
+        //     desc:utf8(b"claim airdrop once"),
+        //     goal_process:1,
+        //     missions: table::new<u64, UserRecord>(ctx),
+        //     deadline:now + 5 * DAY_IN_MS,
+        //     reward:utf8(b"anything")
+        // };
+        // assert!(!linked_table::contains(&global.mission_records, mission3_name), ERR_MISSION_EXIST);
+        // linked_table::push_back(&mut global.mission_records, mission3_name, mission3);
     }
 
     public entry fun delete_mission(global: &mut MissionGlobal, mission:String, _clock:&Clock, ctx:&mut TxContext) {

@@ -164,9 +164,8 @@ module shui_module::airdrop_test {
         next_tx(test, user);
         {
             let global = take_shared<metaIdentity::MetaInfoGlobal>(test);
-            metaIdentity::mintInviteMeta(
+            metaIdentity::mintMeta(
                 &mut global,
-                20001,
                 string::utf8(b"sean2"),
                 string::utf8(b"13262272331"),
                 string::utf8(b"448651346@qq.com"),
@@ -176,22 +175,22 @@ module shui_module::airdrop_test {
             return_shared(global)
         };
 
-        next_tx(test, user);
-        {
-            let global = take_shared<metaIdentity::MetaInfoGlobal>(test);
-            metaIdentity::mintInviteMeta(
-                &mut global,
-                20001,
-                string::utf8(b"sean3"),
-                string::utf8(b"13262272322331"),
-                string::utf8(b"448651346@qq.com"),
-                user2,
-                ctx(test)
-            );
-            print(&utf8(b"invite query:"));
-            print(&metaIdentity::query_invited_num(&global, 20001));
-            return_shared(global)
-        };
+        // next_tx(test, user);
+        // {
+        //     let global = take_shared<metaIdentity::MetaInfoGlobal>(test);
+        //     metaIdentity::mintInviteMeta(
+        //         &mut global,
+        //         20001,
+        //         string::utf8(b"sean3"),
+        //         string::utf8(b"13262272322331"),
+        //         string::utf8(b"448651346@qq.com"),
+        //         user2,
+        //         ctx(test)
+        //     );
+        //     print(&utf8(b"invite query:"));
+        //     print(&metaIdentity::query_invited_num(&global, 20001));
+        //     return_shared(global)
+        // };
 
         next_tx(test, admin);
         {
@@ -256,17 +255,17 @@ module shui_module::airdrop_test {
             print_missions(test, &clock);
         };
 
-        next_tx(test, admin);
-        {
-            let missionGlobal = take_shared<mission::MissionGlobal>(test);
-            let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
-            mission::claim_mission(&mut missionGlobal, utf8(b"water down"), &mut meta);
-            next_epoch(test, admin);
-            return_to_sender(test, meta);
-            return_shared(missionGlobal);
-            next_epoch(test, admin);
-            print_missions(test, &clock);
-        };
+        // next_tx(test, admin);
+        // {
+        //     let missionGlobal = take_shared<mission::MissionGlobal>(test);
+        //     let meta = take_from_sender<metaIdentity::MetaIdentity>(test);
+        //     mission::claim_mission(&mut missionGlobal, utf8(b"water down"), &mut meta);
+        //     next_epoch(test, admin);
+        //     return_to_sender(test, meta);
+        //     return_shared(missionGlobal);
+        //     next_epoch(test, admin);
+        //     print_missions(test, &clock);
+        // };
 
         // water down
         next_tx(test, admin);

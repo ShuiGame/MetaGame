@@ -5,19 +5,26 @@ module shui_module::metaIdentity {
     use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
     use sui::table::{Self};
+    use sui::sui::SUI;
     use std::vector::{Self};
     use sui::event;
     use shui_module::items;
-
+    use sui::coin::{Self, Coin, value, destroy_zero};
+    use sui::pay;
+    
     const ERR_NO_PERMISSION:u64 = 0x004;
     const ERR_UNBINDED:u64 = 0x003;
     const ERR_ALREADY_BIND:u64 = 0x008;
     const ERR_INVALID_TYPE:u64 = 0x011;
     const ERR_PHONE_HAS_BEEN_BINDED:u64= 0x012;
     const ERR_ADDRESS_HAS_BEEN_BINDED:u64= 0x013;
+    const ERR_BALANCE_AMOUNT_WRONG:u64 = 0x014;
+    const ERR_HAS_BEEN_INVITED_BY_MYSELF:u64 = 0x015;
+    const ERR_HAS_BEEN_INVITED:u64 = 0x016;
 
     const TYPE_ALPHA:u64 = 0;
     const TYPE_BETA:u64 = 1;
+    const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
     struct MetaIdentity has key {
         // preserve 0-20000 for airdrop
@@ -69,8 +76,8 @@ module shui_module::metaIdentity {
 
         register_owner:address,
 
-        // metaId -> inviteNumber
-        inviteMap:LinkedTable<u64, u64>
+        // invitor metaId -> vec<other players's addres>
+        inviteMap:LinkedTable<u64, vector<address>>
     }
 
     #[test_only]
@@ -88,7 +95,7 @@ module shui_module::metaIdentity {
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
             register_owner:@register_manager,
-            inviteMap:linked_table::new<u64, u64>(ctx)
+            inviteMap:linked_table::new<u64, vector<address>>(ctx)
         };
         transfer::share_object(global);
     }
@@ -107,56 +114,41 @@ module shui_module::metaIdentity {
             phone_meta_map:table::new<string::String, address>(ctx),
             wallet_phone_map:table::new<address, string::String>(ctx),
             register_owner:@register_manager,
-            inviteMap:linked_table::new<u64, u64>(ctx)
+            inviteMap:linked_table::new<u64, vector<address>>(ctx)
         };
         transfer::share_object(global);
     }
 
-    public entry fun mintInviteMeta(global: &mut MetaInfoGlobal, inviteMetaId:u64, name:string::String, phone:string::String,
-        email:string::String, user_addr:address, ctx:&mut TxContext) {
+    // send 1 sui
+    public entry fun inviteSendSui(global: &mut MetaInfoGlobal, inviteMetaId:u64, receiver:address, coins:vector<Coin<SUI>>, ctx:&mut TxContext) {
+        let price = 1 * AMOUNT_DECIMAL;
         let sender = tx_context::sender(ctx);
-        // assert!(global.register_owner == sender, ERR_NO_PERMISSION);
-        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ALREADY_BIND);
-        let uid = object::new(ctx);
-        let meta_addr = object::uid_to_address(&uid);
-        let meta = MetaIdentity {
-            id: uid,
-            metaId: generateUid(global, user_addr),
-            name:name,
-            phone:phone,
-            email: email,
-            bind_status: true,
-            items:items::new(ctx),
-            wallet:sender
-        };
-        if (linked_table::contains(&global.inviteMap, inviteMetaId)) {
-            let num = linked_table::remove(&mut global.inviteMap, inviteMetaId);
-            linked_table::push_back(&mut global.inviteMap, inviteMetaId, (num + 1));
+        let merged_coin = vector::pop_back(&mut coins);
+        assert!(!is_registered(global, receiver), ERR_HAS_BEEN_INVITED);
+        pay::join_vec(&mut merged_coin, coins);
+        assert!(coin::value(&merged_coin) >= price, ERR_BALANCE_AMOUNT_WRONG);
+        let payment = coin::split<SUI>(&mut merged_coin, price, ctx);
+        transfer::public_transfer(payment, receiver);
+        let value = value(&merged_coin);
+        if (value > 0) {
+            transfer::public_transfer(merged_coin, sender);
         } else {
-            linked_table::push_back(&mut global.inviteMap, inviteMetaId, 1);
+            destroy_zero(merged_coin);
         };
-        assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
-        table::add(&mut global.wallet_meta_map, user_addr, meta_addr);
-
-        assert!(!table::contains(&global.phone_meta_map, phone), ERR_PHONE_HAS_BEEN_BINDED);
-        table::add(&mut global.phone_meta_map, phone, meta_addr);
-
-        assert!(!table::contains(&global.wallet_phone_map, user_addr), ERR_ADDRESS_HAS_BEEN_BINDED);
-        table::add(&mut global.wallet_phone_map, user_addr, phone);
-        transfer::transfer(meta, user_addr);
-
-        event::emit(
-            RegisterEvent {
-                name: name,
-                email: email
-            }
-        );
-        global.total_players = global.total_players + 1;
+        // add to map
+        if(linked_table::contains(&global.inviteMap, inviteMetaId)) {
+            let invited_players = linked_table::borrow_mut(&mut global.inviteMap, inviteMetaId);
+            assert!(!vector::contains(invited_players, &receiver), ERR_HAS_BEEN_INVITED_BY_MYSELF);
+            vector::push_back(invited_players, receiver);
+        } else {
+            let invited_players = vector::empty<address>();
+            vector::push_back(&mut invited_players, receiver);
+            linked_table::push_back(&mut global.inviteMap, inviteMetaId, invited_players);
+        };
     }
 
     public entry fun mintMeta(global: &mut MetaInfoGlobal, name:string::String, phone:string::String, email:string::String, user_addr:address, ctx:&mut TxContext) {
         let sender = tx_context::sender(ctx);
-        // assert!(global.register_owner == sender, ERR_NO_PERMISSION);
         assert!(!table::contains(&global.wallet_meta_map, user_addr), ERR_ALREADY_BIND);
         let uid = object::new(ctx);
         let meta_addr = object::uid_to_address(&uid);
@@ -292,7 +284,11 @@ module shui_module::metaIdentity {
     }
 
     public fun query_meta_by_address(global: &MetaInfoGlobal, user_addr:address): &address {
-        table::borrow(&global.wallet_meta_map, user_addr)
+         table::borrow(&global.wallet_meta_map, user_addr)
+    }
+
+    public fun is_registered(global: &MetaInfoGlobal, user_addr:address) : bool {
+        table::contains(&global.wallet_meta_map, user_addr)
     }
 
     public fun query_meta_by_phone(global: &MetaInfoGlobal, phone:string::String): &address {
@@ -330,9 +326,19 @@ module shui_module::metaIdentity {
         global.total_players
     }
 
-    public entry fun query_invited_num(global:&MetaInfoGlobal, metaId: u64) :u64 {
+    public entry fun query_invited_num(global:&MetaInfoGlobal, metaId: u64) : u64 {
         if (linked_table::contains(&global.inviteMap, metaId)) {
-            *linked_table::borrow(&global.inviteMap, metaId)
+            let addr_vec = linked_table::borrow(&global.inviteMap, metaId);
+            let (i, len) = (0u64, vector::length(addr_vec));
+            let success_num = 0;
+            while (i < len) {
+                let invited = vector::borrow(addr_vec, i);
+                if (is_registered(global, *invited)) {
+                    success_num = success_num + 1;
+                };
+                i = i + 1;
+            };
+            success_num
         } else {
             0
         }
