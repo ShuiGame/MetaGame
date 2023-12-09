@@ -138,7 +138,7 @@ module shui_module::shui {
 
     public(friend) fun extract_airdrop_balance(global: &mut Global, ctx: &mut TxContext) : balance::Balance<SHUI> {
         assert!(tx_context::sender(ctx) == global.creator, ERR_NO_PERMISSION);
-        balance::split(&mut global.balance_SHUI, AIRDROP_AMOUNT * AMOUNT_DECIMAL)
+        balance::split(&mut global.balance_SHUI, (AIRDROP_AMOUNT + WHITE_LIST_RESERVE) * AMOUNT_DECIMAL)
     }
 
     // todo: only once call

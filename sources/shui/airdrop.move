@@ -18,6 +18,7 @@ module shui_module::airdrop {
     const ERR_AIRDROP_NOT_START:u64 = 0x005;
     const ERR_INACTIVE_META:u64 = 0x007;
     const ERR_EXCEED_DAILY_LIMIT:u64 = 0x008;
+    const ERR_HAS_BEEN_CLAIMED:u64 = 0x009;
     const DAY_IN_MS: u64 = 86_400_000;
     const AMOUNT_DECIMAL:u64 = 1_000_000_000;
 
@@ -113,6 +114,7 @@ module shui_module::airdrop {
 
     public entry fun claim_boat_whitelist_airdrop(info:&mut AirdropGlobal, ticket:&mut BoatTicket, meta: &metaIdentity::MetaIdentity, ctx: &mut TxContext) {
         assert!(metaIdentity::is_active(meta), ERR_INACTIVE_META);
+        assert!(!boat_ticket::is_claimed(ticket), ERR_HAS_BEEN_CLAIMED);
         let user = tx_context::sender(ctx);
         let amount = 10_000 * AMOUNT_DECIMAL;
         let whitelist_airdrop = balance::split(&mut info.balance_SHUI, amount);
